@@ -1,0 +1,559 @@
+/**
+ * ChatPlus 2 Styles
+ * Elegant, minimal, low-profile styling
+ * Only affects extension elements with chatplus- prefix
+ */
+
+/* Import mobile styles */
+@import url('./chatplus-mobile.css');
+
+/* Root Container */
+#chatplus-root {
+    margin-top: 0.5rem;
+}
+
+/* Tab Navigation */
+.chatplus-tabs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.chatplus-tab-buttons {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+}
+
+.chatplus-tab-button {
+    display: flex;
+    flex-grow: 1;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.8rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--SmartThemeBodyColor, #ccc);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.chatplus-tab-button:hover {
+    background: var(--SmartThemeBlurTintColor, rgba(255, 255, 255, 0.05));
+    border-color: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.15));
+}
+
+.chatplus-tab-button.active {
+    background: var(--SmartThemeBlurTintColor, rgba(255, 255, 255, 0.1));
+    border-color: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.2));
+    color: var(--SmartThemeQuoteColor, #fff);
+}
+
+.chatplus-tab-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.chatplus-tab-label {
+    font-weight: 500;
+}
+
+/* Tab Panels */
+.chatplus-tab-panels {
+    position: relative;
+    min-height: 200px;
+}
+
+.chatplus-tab-content {
+    display: none;
+}
+
+.chatplus-tab-content.active {
+    display: block;
+}
+
+/* Characters Tab - wraps existing content */
+#chatplus-characters-content {
+    /* Inherits all existing ST styles */
+}
+
+/* Search Bar */
+.chatplus-search-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chatplus-search-input {
+    flex: 1;
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.15));
+    border-radius: 4px;
+    color: var(--SmartThemeBodyColor, #ccc);
+    font-size: 0.9rem;
+}
+
+.chatplus-search-input:focus {
+    outline: none;
+    border-color: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.3));
+}
+
+.chatplus-search-clear {
+    position: absolute;
+    right: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--SmartThemeBodyColor, #999);
+    font-size: 0.9rem;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.chatplus-search-clear:hover {
+    opacity: 1;
+}
+
+/* Recent Tab */
+.chatplus-recent-header {
+    padding: 0.75rem 0;
+}
+
+.chatplus-recent-list {
+    margin-top: 0.5rem;
+}
+
+.chatplus-recent-footer {
+    padding: 0.75rem 0;
+    text-align: center;
+}
+
+/* Folders Tab */
+.chatplus-folders-header {
+    padding: 0.75rem 0;
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.chatplus-folders-header .chatplus-search-bar {
+    flex: 1;
+}
+
+.chatplus-new-folder {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.chatplus-folders-list {
+    margin-top: 0.5rem;
+}
+
+/* Placeholder */
+.chatplus-placeholder {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--SmartThemeBodyColor, #999);
+    opacity: 0.6;
+}
+
+.chatplus-placeholder p {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+/* Load More Button */
+.chatplus-load-more {
+    padding: 0.5rem 1.5rem;
+    font-size: 0.9rem;
+}
+
+/* Utility Classes */
+.chatplus-hidden {
+    display: none !important;
+}
+
+/* ============================================================
+   CHAT ITEM — mobile-first
+   Layout: [avatar] [info block]
+   Info:   [top-row: label + actions] [preview] [footer-row]
+   ============================================================ */
+.chatplus-chat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.5rem;
+    min-height: 56px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.chatplus-chat-item:hover,
+.chatplus-chat-item:active {
+    background: var(--black30a, rgba(0, 0, 0, 0.2));
+}
+
+/* Pinned variant — left accent bar + subtle gold tint */
+.chatplus-chat-item--pinned {
+    background: rgba(255, 215, 0, 0.03);
+    border-left: 2px solid rgba(255, 215, 0, 0.35);
+    padding-left: calc(0.5rem - 2px); /* compensate for border */
+}
+
+/* Active variant — currently open chat */
+.chatplus-chat-item--active {
+    background: var(--SmartThemeBlurTintColor, rgba(255, 255, 255, 0.07));
+    border-left: 2px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.4));
+    padding-left: calc(0.5rem - 2px);
+}
+
+/* ── Avatar ─────────────────────────────────────────────── */
+.chatplus-chat-avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.3));
+    border: 1.5px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+}
+
+.chatplus-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* Group collage: rounded square is cleaner than circle for the 2×2 grid */
+.chatplus-chat-avatar--group {
+    border-radius: 6px;
+}
+
+/* Force ST's collage element to fill the wrapper */
+.chatplus-chat-avatar .avatar {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: unset !important;
+}
+
+/* ── Info block ──────────────────────────────────────────── */
+.chatplus-chat-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+}
+
+/* Top row: "Character: filename" label + action buttons */
+.chatplus-chat-top-row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+/* Label: "CharacterName: chat-filename" */
+.chatplus-chat-label {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--SmartThemeBodyColor, #ddd);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+/* ── Action buttons ─────────────────────────────────────── */
+/* Mobile-first: always visible.
+   Desktop overrides them to hide-until-hover (see chatplus-mobile.css). */
+.chatplus-chat-actions {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+    opacity: 1;
+    transition: opacity 0.15s ease;
+}
+
+.chatplus-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* 28px visual + transparent padding for a 44px touch target */
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--SmartThemeBodyColor, #bbb);
+    font-size: 0.72rem;
+    cursor: pointer;
+    opacity: 0.45;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.chatplus-action-btn:hover,
+.chatplus-action-btn:active {
+    opacity: 1;
+    background: var(--SmartThemeBlurTintColor, rgba(255, 255, 255, 0.08));
+}
+
+/* Pinned state — gold thumbtack */
+.chatplus-action-btn--pinned {
+    color: #c8a84b;
+    opacity: 0.9;
+}
+
+/* Danger action (delete) — red on hover */
+.chatplus-action-btn--danger:hover,
+.chatplus-action-btn--danger:active {
+    color: #d96464;
+    opacity: 1;
+}
+
+/* ── Last message preview ───────────────────────────────── */
+.chatplus-chat-preview {
+    font-size: 0.78rem;
+    color: var(--SmartThemeBodyColor, #aaa);
+    opacity: 0.58;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+/* ── Footer row: timestamp · message count ──────────────── */
+.chatplus-chat-footer-row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.chatplus-chat-timestamp {
+    font-size: 0.7rem;
+    color: var(--SmartThemeBodyColor, #999);
+    opacity: 0.5;
+    white-space: nowrap;
+}
+
+.chatplus-chat-count {
+    font-size: 0.7rem;
+    color: var(--SmartThemeBodyColor, #999);
+    opacity: 0.4;
+    white-space: nowrap;
+}
+
+/* ── Section header ("📌 Pinned Chats") ─────────────────── */
+.chatplus-section-header {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--SmartThemeBodyColor, #999);
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.06));
+}
+
+.chatplus-section-header--pinned {
+    color: #c8a84b;
+    opacity: 0.8;
+    border-bottom-color: rgba(200, 168, 75, 0.2);
+}
+
+/* ── Pinned section wrapper ─────────────────────────────── */
+.chatplus-pinned-section {
+    border-bottom: 2px solid rgba(200, 168, 75, 0.15);
+    margin-bottom: 0.25rem;
+    padding-bottom: 0.15rem;
+}
+
+/* ── Empty / error message ──────────────────────────────── */
+.chatplus-empty-message {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--SmartThemeBodyColor, #999);
+    opacity: 0.55;
+    font-size: 0.875rem;
+}
+
+/* ── Date separator (sticky) ────────────────────────────── */
+.chatplus-date-separator {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--SmartThemeBodyColor, #999);
+    opacity: 0.5;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.12));
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.06));
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* ── Loading spinner ────────────────────────────────────── */
+.chatplus-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem;
+}
+
+.chatplus-spinner {
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    border-top-color: var(--SmartThemeQuoteColor, #ccc);
+    border-radius: 50%;
+    animation: chatplus-spin 0.65s linear infinite;
+}
+
+@keyframes chatplus-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   FOLDER ITEMS
+   ============================================================ */
+.chatplus-folder-item {
+    --chatplus-depth: 0;
+}
+
+.chatplus-folder-header {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.5rem;
+    padding-left: calc(0.5rem + var(--chatplus-depth, 0) * 1rem);
+    min-height: 44px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.06));
+    transition: background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.chatplus-folder-header:hover,
+.chatplus-folder-header:active {
+    background: var(--black30a, rgba(0, 0, 0, 0.15));
+}
+
+.chatplus-folder-toggle {
+    font-size: 0.62rem;
+    opacity: 0.45;
+    flex-shrink: 0;
+    width: 10px;
+    text-align: center;
+    transition: transform 0.15s ease;
+}
+
+.chatplus-folder-item--expanded > .chatplus-folder-header .chatplus-folder-toggle {
+    transform: rotate(90deg);
+}
+
+.chatplus-folder-icon {
+    font-size: 0.85rem;
+    opacity: 0.65;
+    flex-shrink: 0;
+    color: var(--SmartThemeQuoteColor, #ccc);
+}
+
+.chatplus-folder-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--SmartThemeBodyColor, #ddd);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chatplus-folder-actions {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+    opacity: 1;
+}
+
+/* ========================================
+   Settings Panel
+   ======================================== */
+
+.chatplus-settings-section {
+    margin: 12px 0;
+}
+
+.chatplus-settings-section > b {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.chatplus-settings-section > span {
+    display: block;
+    font-size: 0.9em;
+    color: var(--SmartThemeQuoteColor, #aaa);
+    margin-bottom: 6px;
+}
+
+.chatplus-settings-hint {
+    font-size: 0.85em;
+    color: var(--SmartThemeQuoteColor, #888);
+    margin: 2px 0 6px;
+}
+
+.chatplus-settings-tab-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.chatplus-settings-tab-row .menu_button {
+    flex: 1;
+    text-align: center;
+}
+
+.chatplus-settings-tab-row .menu_button.chatplus-active {
+    background: var(--SmartThemeFavColor, rgba(100, 160, 255, 0.25));
+    border-color: var(--SmartThemeFavColor, rgba(100, 160, 255, 0.6));
+    color: var(--SmartThemeBodyColor, #fff);
+    box-shadow: inset 0 0 0 1px var(--SmartThemeFavColor, rgba(100, 160, 255, 0.3)),
+                0 0 6px 0 rgba(100, 160, 255, 0.15);
+    font-weight: 600;
+}
+
+.chatplus-settings-btn-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 6px;
+}
+
+.chatplus-settings-migration {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 200, 50, 0.3));
+    border-radius: 6px;
+    padding: 10px;
+    background: rgba(255, 200, 50, 0.05);
+}

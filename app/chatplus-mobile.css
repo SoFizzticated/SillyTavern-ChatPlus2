@@ -1,0 +1,136 @@
+/**
+ * ChatPlus 2 Mobile / Responsive Styles
+ *
+ * Base styles in chatplus.css are already mobile-first (small screens).
+ * This file adds:
+ *   • Desktop hover-to-reveal for action buttons (≥ 769px)
+ *   • Larger avatars and slightly more padding on tablets/desktop
+ *   • Compact tab labels on narrow phones (≤ 480px)
+ */
+
+/* ============================================================
+   DESKTOP — action buttons hide until item is hovered
+   ============================================================ */
+@media (hover: hover) and (min-width: 769px) {
+    .chatplus-chat-actions,
+    .chatplus-folder-actions {
+        opacity: 0;
+    }
+
+    .chatplus-chat-item:hover .chatplus-chat-actions,
+    .chatplus-chat-item:focus-within .chatplus-chat-actions,
+    .chatplus-folder-header:hover .chatplus-folder-actions,
+    .chatplus-folder-header:focus-within .chatplus-folder-actions {
+        opacity: 1;
+    }
+
+    /* Slightly larger avatar on desktop */
+    .chatplus-chat-avatar {
+        width: 44px;
+        height: 44px;
+    }
+
+    /* A little more breathing room */
+    .chatplus-chat-item {
+        padding: 0.6rem 0.6rem;
+    }
+}
+
+/* ============================================================
+   TABLET / SMALL DESKTOP (≤ 1024px)
+   ============================================================ */
+@media screen and (max-width: 1024px) {
+    .chatplus-tab-button {
+        padding: 0.4rem 0.7rem;
+        font-size: 0.88rem;
+    }
+}
+
+/* ============================================================
+   MOBILE (≤ 768px) — already covered by base styles,
+   these are minor tweaks
+   ============================================================ */
+@media screen and (max-width: 768px) {
+    /* Smaller tab buttons */
+    .chatplus-tab-button {
+        padding: 0.35rem 0.6rem;
+        font-size: 0.85rem;
+        gap: 0.3rem;
+    }
+
+    .chatplus-tab-icon {
+        font-size: 0.9rem;
+    }
+
+    .chatplus-tab-label {
+        font-size: 0.85rem;
+    }
+
+    /* Stack search bar and new-folder button on mobile */
+    .chatplus-folders-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .chatplus-new-folder {
+        width: 100%;
+    }
+
+    /* Slightly smaller search input */
+    .chatplus-search-input {
+        font-size: 0.85rem;
+        padding: 0.45rem 2rem 0.45rem 0.65rem;
+    }
+
+    /* Action buttons: slightly larger tap target on mobile */
+    .chatplus-action-btn {
+        width: 32px;
+        height: 32px;
+        font-size: 0.78rem;
+        /* Always at full opacity on touch screens */
+        opacity: 0.55;
+    }
+
+    .chatplus-placeholder {
+        padding: 1.5rem 0.75rem;
+    }
+
+    .chatplus-placeholder p {
+        font-size: 0.85rem;
+    }
+}
+
+/* ============================================================
+   VERY NARROW PHONES (≤ 480px)
+   ============================================================ */
+@media screen and (max-width: 480px) {
+    .chatplus-tab-buttons {
+        gap: 0.15rem;
+    }
+
+    .chatplus-tab-button {
+        padding: 0.3rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    /* Show only icons, hide text label */
+    .chatplus-tab-label {
+        display: none;
+    }
+
+    /* Trim a bit of horizontal padding to maximise list width */
+    .chatplus-chat-item {
+        padding-left: 0.35rem;
+        padding-right: 0.35rem;
+        gap: 0.45rem;
+    }
+
+    .chatplus-chat-label {
+        font-size: 0.82rem;
+    }
+
+    .chatplus-chat-preview {
+        font-size: 0.74rem;
+    }
+}

@@ -1,0 +1,115 @@
+<!-- ChatPlus 2 Tab Interface -->
+<div class="chatplus-tabs-container">
+  <!-- Tab Navigation -->
+  <div class="chatplus-tab-buttons">
+    <button class="chatplus-tab-button" data-chatplus-tab="characters">
+      <span class="chatplus-tab-icon">👥</span>
+      <span class="chatplus-tab-label">Characters</span>
+    </button>
+    <button class="chatplus-tab-button" data-chatplus-tab="recent">
+      <span class="chatplus-tab-icon">🕒</span>
+      <span class="chatplus-tab-label">Recent</span>
+    </button>
+    <button class="chatplus-tab-button" data-chatplus-tab="folders">
+      <span class="chatplus-tab-icon">📁</span>
+      <span class="chatplus-tab-label">Folders</span>
+    </button>
+  </div>
+
+  <!-- Tab Contents -->
+  <div class="chatplus-tab-panels">
+    <!-- Characters Tab (wraps existing ST content) -->
+    <div class="chatplus-tab-content" data-chatplus-tab="characters">
+      <div id="chatplus-characters-content">
+        <!-- Existing SillyTavern character list will be moved here -->
+      </div>
+    </div>
+
+    <!-- Recent Chats Tab -->
+    <div class="chatplus-tab-content" data-chatplus-tab="recent">
+      <div class="chatplus-recent-header">
+        <div class="chatplus-search-bar">
+          <input type="text" id="chatplus-recent-search" class="chatplus-search-input text_pole" placeholder="Search chats..." />
+          <button class="chatplus-search-clear" id="chatplus-recent-clear" title="Clear search">✕</button>
+        </div>
+      </div>
+      <div class="chatplus-recent-list" id="chatplus-recent-list">
+        <!-- Recent chats will be rendered here -->
+        <div class="chatplus-placeholder">
+          <p>Recent chats will appear here</p>
+        </div>
+      </div>
+      <div class="chatplus-recent-footer">
+        <button class="chatplus-load-more menu_button" id="chatplus-load-more" style="display: none">Load More</button>
+      </div>
+    </div>
+
+    <!-- Folders Tab -->
+    <div class="chatplus-tab-content" data-chatplus-tab="folders">
+      <div class="chatplus-folders-header">
+        <div class="chatplus-search-bar">
+          <input type="text" id="chatplus-folders-search" class="chatplus-search-input text_pole" placeholder="Search folders..." />
+          <button class="chatplus-search-clear" id="chatplus-folders-clear" title="Clear search">✕</button>
+        </div>
+        <button class="chatplus-new-folder menu_button" id="chatplus-new-folder">+ New Folder</button>
+      </div>
+      <div class="chatplus-folders-list" id="chatplus-folders-list">
+        <!-- Folders will be rendered here -->
+        <div class="chatplus-placeholder">
+          <p>Create folders to organize your chats</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Panel (extracted and injected into #extensions_settings2 by index.js) -->
+<template id="chatplus-settings-template">
+  <div id="chatplus2-settings-drawer" class="inline-drawer">
+    <div class="inline-drawer-toggle inline-drawer-header">
+      <b>ChatPlus 2</b>
+      <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+    </div>
+    <div class="inline-drawer-content">
+      <!-- Enable/Disable -->
+      <label class="checkbox_label" for="chatplus2-settings-enabled">
+        <input type="checkbox" id="chatplus2-settings-enabled" />
+        <span>Enable ChatPlus 2 (needs reload)</span>
+      </label>
+
+      <!-- Default Tab -->
+      <div class="chatplus-settings-section">
+        <b>Default Tab on Startup:</b>
+        <div class="chatplus-settings-tab-row" id="chatplus2-settings-default-tab">
+          <button class="menu_button" data-tab="characters">Characters</button>
+          <button class="menu_button" data-tab="recent">Recent Chats</button>
+          <button class="menu_button" data-tab="folders">Folders</button>
+        </div>
+      </div>
+
+      <!-- Backup Management -->
+      <div class="chatplus-settings-section">
+        <b>Backup Management:</b>
+        <span>Import/Export current extension data:</span>
+        <div class="chatplus-settings-btn-row">
+          <button id="chatplus2-settings-import" class="menu_button"><i class="fa-solid fa-file-import"></i> Import</button>
+          <button id="chatplus2-settings-export" class="menu_button"><i class="fa-solid fa-file-export"></i> Export</button>
+        </div>
+      </div>
+
+      <!-- Manual Reload -->
+      <div class="chatplus-settings-section">
+        <b>Manual Reload:</b>
+        <p class="chatplus-settings-hint">If tabs become unresponsive, use this to reload them.</p>
+        <button id="chatplus2-settings-reload" class="menu_button"><i class="fa-solid fa-arrows-rotate"></i> Reload Tabs</button>
+      </div>
+
+      <!-- V1 Migration Notice (hidden by default) -->
+      <div id="chatplus2-settings-migration" class="chatplus-settings-section chatplus-settings-migration" style="display: none">
+        <b>Migration Available:</b>
+        <p class="chatplus-settings-hint">ChatPlus v1 settings detected. Migrate your pins and folders to v2.</p>
+        <button id="chatplus2-settings-migrate" class="menu_button"><i class="fa-solid fa-right-left"></i> Migrate Now</button>
+      </div>
+    </div>
+  </div>
+</template>
