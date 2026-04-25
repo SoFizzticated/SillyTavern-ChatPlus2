@@ -1,0 +1,244 @@
+<!-- ChatPlus 2 Lost & Found Resolver Modal -->
+<template id="chatplus-lostfound-template">
+  <div class="chatplus-lostfound-overlay">
+    <div class="chatplus-lostfound-modal">
+      <!-- Header -->
+      <div class="chatplus-lostfound-header">
+        <h3 class="chatplus-lostfound-title">
+          <i class="fa-solid fa-magnifying-glass-location"></i>
+          Lost &amp; Found
+        </h3>
+        <span class="chatplus-lostfound-count"></span>
+        <button class="chatplus-lostfound-close menu_button" title="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Pagination strip (hidden when N ≤ 1) -->
+      <div class="chatplus-lf-pager">
+        <button class="chatplus-lf-pager-prev menu_button" type="button" title="Previous orphan">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <span class="chatplus-lf-pager-indicator">1 / 1</span>
+        <button class="chatplus-lf-pager-next menu_button" type="button" title="Next orphan">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <!-- Two-pane body: orphan (left) + candidate+preview (right) -->
+      <div class="chatplus-lf-body" data-active-pane="orphan">
+        <!-- Mobile-only tab switcher (hidden on desktop via CSS) -->
+        <div class="chatplus-lf-mobile-tabs" role="tablist" aria-label="Switch between lost chat and candidate">
+          <button class="chatplus-lf-mobile-tab is-active" type="button" role="tab" aria-selected="true" data-pane="orphan">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>Lost</span>
+          </button>
+          <button class="chatplus-lf-mobile-tab" type="button" role="tab" aria-selected="false" data-pane="candidate">
+            <i class="fa-solid fa-link"></i>
+            <span>Candidate</span>
+          </button>
+        </div>
+        <div class="chatplus-lf-orphan-pane"></div>
+        <div class="chatplus-lf-candidate-pane"></div>
+      </div>
+
+      <!-- Footer: per-orphan actions + batch bar -->
+      <div class="chatplus-lf-footer">
+        <div class="chatplus-lf-match-actions">
+          <button class="menu_button chatplus-lf-btn-ignore" type="button" title="Leave as-is — check again later"><i class="fa-solid fa-clock"></i> Ignore</button>
+          <button class="menu_button chatplus-lf-btn-delete" type="button" title="Remove this orphaned reference from pins and folders"><i class="fa-solid fa-trash"></i> Delete</button>
+          <button class="menu_button chatplus-lf-btn-reconnect" type="button" title="Reconnect to selected chat"><i class="fa-solid fa-link"></i> Reconnect</button>
+        </div>
+
+        <!-- Inline delete confirmation strip (hidden until Delete is clicked) -->
+        <div class="chatplus-lf-confirm-strip" style="display: none">
+          <span class="chatplus-lf-confirm-strip-msg">Remove this orphaned reference? Pins and folder assignments will be cleared.</span>
+          <button class="menu_button chatplus-lf-confirm-strip-cancel" type="button">Cancel</button>
+          <button class="menu_button chatplus-lf-confirm-strip-ok" type="button"><i class="fa-solid fa-trash"></i> Confirm Delete</button>
+        </div>
+
+        <div class="chatplus-lostfound-actions">
+          <button class="chatplus-lostfound-batch-relink menu_button" type="button" title="Reconnect all high-confidence matches"><i class="fa-solid fa-link"></i> Auto-Reconnect Obvious</button>
+          <button class="chatplus-lostfound-batch-apply menu_button" type="button" title="Apply chosen resolutions"><i class="fa-solid fa-check-double"></i>Apply</button>
+        </div>
+      </div>
+
+      <!-- Empty state (no orphans at all) -->
+      <div class="chatplus-lostfound-empty" style="display: none">
+        <i class="fa-solid fa-circle-check"></i>
+        <p>No orphaned references found. Everything looks good!</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- ─────────────────────────────────────────
+     ORPHAN PANE (left)
+     ───────────────────────────────────────── -->
+<template id="chatplus-lf-orphan-pane-template">
+  <div class="chatplus-lf-orphan-header">
+    <!-- Avatar mount point -->
+    <div class="chatplus-lf-orphan-avatar-slot"></div>
+    <div class="chatplus-lf-orphan-identity">
+      <div class="chatplus-lf-orphan-charname"></div>
+      <div class="chatplus-lf-orphan-filename"></div>
+    </div>
+    <span class="chatplus-lf-missing-tag" title="This chat no longer exists in the live chat index">Missing</span>
+  </div>
+
+  <div class="chatplus-lf-origin">
+    <div class="chatplus-lf-section-label"><i class="fa-solid fa-location-dot"></i> Where it was</div>
+    <div class="chatplus-lf-origin-list"></div>
+  </div>
+
+  <div class="chatplus-lf-snapshot">
+    <div class="chatplus-lf-section-label"><i class="fa-solid fa-comment-dots"></i> Last seen message <small>(snapshot)</small></div>
+    <div class="chatplus-lf-snapshot-slot"></div>
+  </div>
+
+  <div class="chatplus-lf-orphan-key" title="Stored chat key"></div>
+</template>
+
+<!-- ─────────────────────────────────────────
+     CANDIDATE PANE (right)
+     ───────────────────────────────────────── -->
+<template id="chatplus-lf-candidate-pane-template">
+  <div class="chatplus-lf-candidate-header">
+    <div class="chatplus-lf-section-label"><i class="fa-solid fa-link"></i> Reconnect to candidate</div>
+    <div class="chatplus-lf-decision-chip-slot"></div>
+  </div>
+  <div class="chatplus-lf-dropdown-slot"></div>
+  <div class="chatplus-lf-section-label chatplus-lf-preview-label" style="display: none"><i class="fa-solid fa-comments"></i> Preview <small>(last ~20 messages of selected candidate)</small></div>
+  <div class="chatplus-lf-preview"></div>
+  <div class="chatplus-lf-candidate-empty" style="display: none">
+    <i class="fa-solid fa-circle-info"></i>
+    No matching chats found for this character. Use <strong>Delete</strong> or <strong>Ignore</strong> to resolve.
+  </div>
+</template>
+
+<!-- Queued-decision chip (appended to header when a decision exists) -->
+<template id="chatplus-lf-decision-chip-template">
+  <span class="chatplus-lf-decision-chip">
+    <i class="fa-solid fa-check-circle"></i>
+    <span class="chatplus-lf-decision-chip-label"></span>
+  </span>
+</template>
+
+<!-- ─────────────────────────────────────────
+     ORIGIN BREAKDOWN ITEMS
+     ───────────────────────────────────────── -->
+<template id="chatplus-lf-origin-pin-template">
+  <div class="chatplus-lf-origin-item chatplus-lf-origin-item--pin">
+    <i class="fa-solid fa-thumbtack"></i>
+    <span class="chatplus-lf-origin-label">Pinned chat</span>
+  </div>
+</template>
+
+<template id="chatplus-lf-origin-folder-template">
+  <div class="chatplus-lf-origin-item chatplus-lf-origin-item--folder">
+    <i class="fa-solid fa-folder-open"></i>
+    <span class="chatplus-lf-origin-label">In folder:</span>
+    <div class="chatplus-lf-origin-breadcrumb"></div>
+  </div>
+</template>
+
+<template id="chatplus-lf-origin-transient-template">
+  <div class="chatplus-lf-origin-item chatplus-lf-origin-item--transient">
+    <i class="fa-solid fa-hourglass-half"></i>
+    <span class="chatplus-lf-origin-label">Transient lookup</span>
+    <span class="chatplus-lf-origin-missing">(not in pins or folders)</span>
+  </div>
+</template>
+
+<template id="chatplus-lf-origin-crumb-template">
+  <span class="chatplus-lf-origin-breadcrumb-crumb"></span>
+</template>
+
+<template id="chatplus-lf-origin-crumb-sep-template">
+  <span class="chatplus-lf-origin-breadcrumb-sep">›</span>
+</template>
+
+<template id="chatplus-lf-origin-crumb-deleted-template">
+  <span class="chatplus-lf-origin-breadcrumb-crumb chatplus-lf-origin-breadcrumb-crumb--deleted">(deleted folder)</span>
+</template>
+
+<template id="chatplus-lf-origin-missing-template">
+  <div class="chatplus-lf-origin-missing">No origin information available.</div>
+</template>
+
+<!-- ─────────────────────────────────────────
+     RECONNECT BUTTON STATES
+     ───────────────────────────────────────── -->
+<template id="chatplus-lf-btn-reconnect-idle-template"> <i class="fa-solid fa-link"></i> Reconnect </template>
+
+<template id="chatplus-lf-btn-reconnect-queued-template"> <i class="fa-solid fa-check"></i> Queued: Reconnect </template>
+
+<!-- ─────────────────────────────────────────
+     SNAPSHOT CONTENT
+     ───────────────────────────────────────── -->
+<template id="chatplus-lf-snapshot-body-template">
+  <div class="chatplus-lf-snapshot-body"></div>
+</template>
+
+<template id="chatplus-lf-snapshot-empty-template">
+  <div class="chatplus-lf-snapshot-empty">No snapshot stored for this chat.</div>
+</template>
+
+<!-- ─────────────────────────────────────────
+     PREVIEW PANEL
+     ───────────────────────────────────────── -->
+<template id="chatplus-lf-preview-status-template">
+  <div class="chatplus-lf-preview-status"></div>
+</template>
+
+<template id="chatplus-lf-preview-spinner-template">
+  <div class="chatplus-lf-preview-status"><i class="fa-solid fa-spinner fa-spin"></i> Loading messages…</div>
+</template>
+
+<template id="chatplus-lf-preview-msg-template">
+  <div class="chatplus-lf-preview-msg">
+    <div class="chatplus-lf-preview-name"></div>
+    <div class="chatplus-lf-preview-text"></div>
+  </div>
+</template>
+
+<!-- ─────────────────────────────────────────
+     CANDIDATE DROPDOWN
+     ───────────────────────────────────────── -->
+<template id="chatplus-lf-dropdown-template">
+  <div class="chatplus-lf-dropdown">
+    <button class="chatplus-lf-dropdown-trigger menu_button" type="button">
+      <span class="chatplus-lf-dropdown-label">Select a chat…</span>
+      <i class="fa-solid fa-chevron-down chatplus-lf-dropdown-icon"></i>
+    </button>
+    <div class="chatplus-lf-dropdown-panel" style="display: none">
+      <input type="text" class="chatplus-lf-dropdown-search text_pole" placeholder="Search chats…" />
+      <div class="chatplus-lf-dropdown-options"></div>
+    </div>
+  </div>
+</template>
+
+<template id="chatplus-lf-dropdown-option-template">
+  <div class="chatplus-lf-dropdown-option">
+    <div class="chatplus-lf-option-main">
+      <span class="chatplus-lf-option-name"></span>
+      <span class="chatplus-lostfound-confidence"></span>
+    </div>
+    <div class="chatplus-lf-option-excerpt" style="display: none"></div>
+  </div>
+</template>
+
+<!-- ─────────────────────────────────────────
+     AVATAR FALLBACKS
+     ───────────────────────────────────────── -->
+<template id="chatplus-lf-avatar-group-template">
+  <div class="chatplus-lostfound-avatar--group"></div>
+</template>
+
+<template id="chatplus-lf-avatar-img-template">
+  <img alt="" loading="lazy" />
+</template>
+
+<template id="chatplus-lf-avatar-fallback-template">
+  <img class="chatplus-lostfound-avatar-fallback" alt="" src="/img/ai4.png" />
+</template>

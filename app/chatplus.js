@@ -16,6 +16,8 @@ import FoldersView from '../modules/folders-view.js';
 import TabController from '../modules/tab-controller.js';
 import SearchFilter from '../modules/search-filter.js';
 import UIRenderer from '../modules/ui-renderer.js';
+import LostAndFound from '../modules/lost-and-found.js';
+import SnapshotStore from '../modules/snapshot-store.js';
 import EventHandlers from '../utils/event-handlers.js';
 import * as CoreAPI from '../modules/core-api.js';
 
@@ -35,6 +37,8 @@ class ChatPlusCoordinator {
         this.searchFilter = null;
         this.uiRenderer = null;
         this.eventHandlers = null;
+        this.lostAndFound = null;
+        this.snapshotStore = null;
 
         // Initialization state
         this.initialized = false;
@@ -102,6 +106,27 @@ class ChatPlusCoordinator {
                 cacheSize: this.chatRepository.chatCache?.size || 0
             });
 
+            // One-shot remap of any pins / folder assignments that still use a
+            // legacy group-avatar form (avatar_url / avatar) as their chat-key
+            // avatar component. Since Phase 2 of step 27, the canonical form is
+            // `<group.id>:<filename>`. This call is idempotent — safe on every
+            // init — and runs BEFORE Phase 3 so that PinnedChatsManager and
+            // FolderSystemManager see already-remapped state.
+            try {
+                this.chatRepository.remapStaleGroupKeys(this.stateManager);
+            } catch (error) {
+                console.error('[ChatPlus2] Group key remap failed:', error);
+            }
+
+            // Initialize SnapshotStore (persistent last-message database)
+            this.snapshotStore = new SnapshotStore();
+            CoreAPI.registerModule('SnapshotStore', this.snapshotStore);
+            await this.snapshotStore.init();
+
+            console.debug('[ChatPlus2] SnapshotStore initialized:', {
+                storedSnapshots: this.snapshotStore.size
+            });
+
             // ========================================
             // PHASE 3: FEATURE MODULES
             // ========================================
@@ -111,31 +136,42 @@ class ChatPlusCoordinator {
             this.pinnedChatsManager = new PinnedChatsManager(this.stateManager);
             CoreAPI.registerModule('PinnedChatsManager', this.pinnedChatsManager);
 
-            // Clean orphaned pins
-            const removedPins = await this.pinnedChatsManager.cleanOrphanedPins();
-            if (removedPins.length > 0) {
-                console.debug(`[ChatPlus2] Cleaned ${removedPins.length} orphaned pinned chats`);
-            }
-
             console.debug('[ChatPlus2] PinnedChatsManager initialized:', {
-                pinnedCount: this.pinnedChatsManager.getPinnedKeys().length,
-                orphansRemoved: removedPins.length
+                pinnedCount: this.pinnedChatsManager.getPinnedKeys().length
             });
 
             // Initialize FolderSystemManager
             this.folderSystemManager = new FolderSystemManager(this.stateManager);
             CoreAPI.registerModule('FolderSystemManager', this.folderSystemManager);
 
-            // Clean orphaned folder assignments
+            // Clean folder-ID orphans (assignments pointing to deleted folders).
+            // This is safe to auto-clean — folders are extension-internal data.
             const orphanedAssignments = this.folderSystemManager.cleanOrphanedAssignments();
             if (orphanedAssignments > 0) {
-                console.debug(`[ChatPlus2] Cleaned ${orphanedAssignments} orphaned folder assignments`);
+                console.debug(`[ChatPlus2] Cleaned ${orphanedAssignments} orphaned folder-ID assignments`);
             }
 
             console.debug('[ChatPlus2] FolderSystemManager initialized:', {
                 folderCount: this.folderSystemManager.getFolderCount(),
-                orphansRemoved: orphanedAssignments
+                folderIdOrphansRemoved: orphanedAssignments
             });
+
+            // Initialize LostAndFound (orphaned chat-key detection)
+            this.lostAndFound = new LostAndFound();
+            CoreAPI.registerModule('LostAndFound', this.lostAndFound);
+
+            // Detect orphaned chat keys (pins/folders referencing chats
+            // that no longer exist). Unlike the old silent-delete approach,
+            // we notify the user so they can choose to relink or remove.
+            const { report, candidates } = this.lostAndFound.scan();
+            if (report.orphans.length > 0) {
+                this._showLostFoundBanner({ report, candidates, reason: 'init' });
+            }
+
+            console.debug('[ChatPlus2] LostAndFound initialized');
+
+            // Bootstrap snapshots for tracked keys that don't have one yet
+            this._bootstrapSnapshots();
 
             // Initialize RecentChatsView
             this.recentChatsView = new RecentChatsView(
@@ -224,8 +260,62 @@ class ChatPlusCoordinator {
             pinnedChatsManager: this.pinnedChatsManager,
             folderSystemManager: this.folderSystemManager,
             recentChatsView: this.recentChatsView,
+            snapshotStore: this.snapshotStore,
+            lostAndFound: this.lostAndFound,
         });
         this.eventHandlers.register();
+
+        // Subscribe to internal orphan-rescan event emitted by EventHandlers
+        // after a character/chat destructive event. Shares one banner path
+        // with the init-time scan in Phase 3.
+        this._lostFoundUnsub = CoreAPI.on('lost-found-orphans-detected', (payload) => {
+            this._showLostFoundBanner(payload);
+        });
+    }
+
+    /**
+     * Show a non-blocking toast banner notifying the user about orphaned
+     * chat references. Shared by the init-time scan and the event-driven
+     * rescan pipeline. Copy varies by `reason` to give the user context on
+     * what action introduced the orphans.
+     *
+     * @param {{ report: Object, candidates: Object, reason?: string }} payload
+     * @private
+     */
+    _showLostFoundBanner({ report, candidates, reason }) {
+        if (!report?.orphans?.length || !this.lostAndFound) return;
+        const n = report.orphans.length;
+        const s = n > 1 ? 's' : '';
+
+        let message;
+        switch (reason) {
+            case 'character-renamed':
+                message = `A character rename left ${n} broken chat reference${s}. Click to review.`;
+                break;
+            case 'character-deleted':
+                message = `A character deletion left ${n} broken chat reference${s}. Click to review.`;
+                break;
+            case 'chat-deleted':
+                message = `A chat deletion left ${n} broken chat reference${s}. Click to review.`;
+                break;
+            case 'group-chat-deleted':
+                message = `A group chat deletion left ${n} broken chat reference${s}. Click to review.`;
+                break;
+            case 'init':
+            default:
+                message = `${n} orphaned chat reference${s} found. Click here to review.`;
+                break;
+        }
+
+        if (!window.toastr) return;
+        const lf = this.lostAndFound;
+        toastr.warning(message, 'ChatPlus 2 — Lost & Found', {
+            timeOut: 8000,
+            extendedTimeOut: 4000,
+            closeButton: true,
+            tapToDismiss: false,
+            onclick: () => lf.showResolver(report, candidates),
+        });
     }
 
     /**
@@ -239,11 +329,22 @@ class ChatPlusCoordinator {
         this.eventHandlers?.destroy();
         this.eventHandlers = null;
 
+        // Unsubscribe from internal orphan-rescan event
+        if (typeof this._lostFoundUnsub === 'function') {
+            try { this._lostFoundUnsub(); } catch { /* best-effort */ }
+            this._lostFoundUnsub = null;
+        }
+
         // Clear module references
+        // Flush snapshot store before teardown
+        this.snapshotStore?.flush();
+
         this.stateManager = null;
         this.chatRepository = null;
         this.pinnedChatsManager = null;
         this.folderSystemManager = null;
+        this.lostAndFound = null;
+        this.snapshotStore = null;
         this.recentChatsView?.destroy();
         this.recentChatsView = null; this.foldersView?.destroy();
         this.foldersView = null; this.tabController?.destroy();
@@ -256,6 +357,54 @@ class ChatPlusCoordinator {
         this.initializationError = null;
 
         console.log('[ChatPlus2] Coordinator destroyed');
+    }
+
+    /**
+     * Bootstrap snapshots for all currently tracked keys (pinned + foldered)
+     * that don't already have a snapshot stored. Runs once during init.
+     * @private
+     */
+    async _bootstrapSnapshots() {
+        if (!this.snapshotStore || !this.chatRepository) return;
+
+        const pinnedKeys = this.pinnedChatsManager?.getPinnedKeys() ?? [];
+        const folderedKeys = Object.keys(
+            this.stateManager?.get('chatFolders') ?? {},
+        );
+
+        // Deduplicate
+        const trackedKeys = new Set([...pinnedKeys, ...folderedKeys]);
+        const missingKeys = [];
+
+        for (const key of trackedKeys) {
+            if (!this.snapshotStore.has(key)) {
+                missingKeys.push(key);
+            }
+        }
+
+        if (missingKeys.length === 0) return;
+
+        console.debug(
+            `[ChatPlus2] Bootstrapping snapshots for ${missingKeys.length} tracked key(s)…`,
+        );
+
+        const entries = [];
+        for (const chatKey of missingKeys) {
+            const chat = this.chatRepository.getChatByKey(chatKey);
+            if (!chat) continue;
+
+            const stats = await this.chatRepository.getChatStats(chat);
+            if (stats?.lastMessage) {
+                entries.push({ chatKey, lastMessage: stats.lastMessage });
+            }
+        }
+
+        if (entries.length > 0) {
+            this.snapshotStore.bulkUpdate(entries);
+            console.debug(
+                `[ChatPlus2] Bootstrapped ${entries.length} snapshot(s)`,
+            );
+        }
     }
 
     /**
@@ -274,7 +423,8 @@ class ChatPlusCoordinator {
                         stateManager: !!this.stateManager,
                         chatRepository: !!this.chatRepository,
                         pinnedChatsManager: !!this.pinnedChatsManager,
-                        folderSystemManager: !!this.folderSystemManager
+                        folderSystemManager: !!this.folderSystemManager,
+                        lostAndFound: !!this.lostAndFound
                     },
                     settings: this.stateManager?.get() || null,
                     stats: {

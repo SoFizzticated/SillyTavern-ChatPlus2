@@ -1,0 +1,64 @@
+<!-- ChatPlus 2 Snapshot Database Viewer Modal -->
+<template id="chatplus-snapshot-viewer-template">
+  <div class="chatplus-snapshot-viewer-overlay">
+    <div class="chatplus-snapshot-viewer-modal" role="dialog" aria-labelledby="chatplus-snapshot-viewer-title">
+      <!-- Header -->
+      <div class="chatplus-snapshot-viewer-header">
+        <h3 class="chatplus-snapshot-viewer-title" id="chatplus-snapshot-viewer-title">
+          <i class="fa-solid fa-database"></i>
+          Snapshot Database
+        </h3>
+        <span class="chatplus-snapshot-viewer-count"></span>
+        <button class="chatplus-snapshot-viewer-close menu_button" title="Close">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Search / filter -->
+      <div class="chatplus-snapshot-viewer-searchbar">
+        <i class="fa-solid fa-magnifying-glass chatplus-snapshot-viewer-search-icon"></i>
+        <input type="text" class="chatplus-snapshot-viewer-search text_pole" placeholder="Filter by chat key or message…" autocomplete="off" spellcheck="false" />
+      </div>
+
+      <!-- Table -->
+      <div class="chatplus-snapshot-viewer-table-wrap">
+        <table class="chatplus-snapshot-viewer-table">
+          <thead>
+            <tr>
+              <th>
+                <button class="chatplus-snapshot-viewer-sort" data-sort-column="key" type="button">
+                  <span>Chat Key</span>
+                  <i class="fa-solid fa-sort chatplus-snapshot-viewer-sort-icon"></i>
+                </button>
+              </th>
+              <th>
+                <button class="chatplus-snapshot-viewer-sort" data-sort-column="lastMessage" type="button">
+                  <span>Last Message</span>
+                  <i class="fa-solid fa-sort chatplus-snapshot-viewer-sort-icon"></i>
+                </button>
+              </th>
+              <th>
+                <button class="chatplus-snapshot-viewer-sort" data-sort-column="updatedAt" type="button">
+                  <span>Updated</span>
+                  <i class="fa-solid fa-sort chatplus-snapshot-viewer-sort-icon"></i>
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody class="chatplus-snapshot-viewer-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Empty state (hidden by default) -->
+      <div class="chatplus-snapshot-viewer-empty" style="display: none">
+        <i class="fa-solid fa-inbox"></i>
+        <p class="chatplus-snapshot-viewer-empty-text">No entries stored yet.</p>
+      </div>
+
+      <!-- Footer -->
+      <div class="chatplus-snapshot-viewer-footer">
+        <span class="chatplus-snapshot-viewer-status"></span>
+      </div>
+    </div>
+  </div>
+</template>

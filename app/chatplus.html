@@ -2,36 +2,55 @@
 <div class="chatplus-tabs-container">
   <!-- Tab Navigation -->
   <div class="chatplus-tab-buttons">
-    <button class="chatplus-tab-button" data-chatplus-tab="characters">
-      <span class="chatplus-tab-icon">👥</span>
+    <button class="chatplus-tab-button" data-chatplus-tab="characters" title="Characters">
+      <span class="chatplus-tab-icon"><i class="fa-solid fa-users" aria-hidden="true"></i></span>
       <span class="chatplus-tab-label">Characters</span>
     </button>
-    <button class="chatplus-tab-button" data-chatplus-tab="recent">
-      <span class="chatplus-tab-icon">🕒</span>
+    <button class="chatplus-tab-button" data-chatplus-tab="recent" title="Recent">
+      <span class="chatplus-tab-icon"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span>
       <span class="chatplus-tab-label">Recent</span>
     </button>
-    <button class="chatplus-tab-button" data-chatplus-tab="folders">
-      <span class="chatplus-tab-icon">📁</span>
+    <button class="chatplus-tab-button" data-chatplus-tab="folders" title="Folders">
+      <span class="chatplus-tab-icon"><i class="fa-solid fa-folder-tree" aria-hidden="true"></i></span>
       <span class="chatplus-tab-label">Folders</span>
     </button>
   </div>
 
   <!-- Tab Contents -->
   <div class="chatplus-tab-panels">
-    <!-- Characters Tab (wraps existing ST content) -->
-    <div class="chatplus-tab-content" data-chatplus-tab="characters">
-      <div id="chatplus-characters-content">
-        <!-- Existing SillyTavern character list will be moved here -->
+    <!-- Loading overlay (step 43g) — scoped to the tab-panels area so it
+         only dims Recent/Folders content. The Characters tab content is
+         empty; ST's native `.scrollableInner` lives outside this container
+         and is never covered. Shown via `hidden` attribute toggle from
+         CoreAPI.showLoadingOverlay() with a 150 ms delay so fast ops
+         don't flash. -->
+    <div id="chatplus-loading-overlay" class="chatplus-loading-overlay" role="status" aria-live="polite" aria-hidden="true" hidden>
+      <div class="chatplus-loading-overlay-inner">
+        <i class="fa-solid fa-spinner fa-spin chatplus-loading-overlay-icon" aria-hidden="true"></i>
+        <span class="chatplus-loading-overlay-label">Loading…</span>
       </div>
     </div>
+    <!-- Characters Tab — intentionally empty. ChatPlus does NOT move
+         SillyTavern's DOM. When this tab is active, TabController removes
+         `.chatplus-native-hidden` from `#right-nav-panel .scrollableInner`
+         so ST's own character list / group chats / create form show in
+         their original position. -->
+    <div class="chatplus-tab-content" data-chatplus-tab="characters"></div>
 
     <!-- Recent Chats Tab -->
     <div class="chatplus-tab-content" data-chatplus-tab="recent">
-      <div class="chatplus-recent-header">
-        <div class="chatplus-search-bar">
-          <input type="text" id="chatplus-recent-search" class="chatplus-search-input text_pole" placeholder="Search chats..." />
-          <button class="chatplus-search-clear" id="chatplus-recent-clear" title="Clear search">✕</button>
+      <div class="chatplus-recent-toolbar">
+        <div class="chatplus-recent-toolbar-primary">
+          <button class="menu_button chatplus-icon-btn" id="chatplus-recent-reload" title="Reload chats" aria-label="Reload chats">
+            <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+          </button>
+          <div class="chatplus-search-bar">
+            <input type="text" id="chatplus-recent-search" class="chatplus-search-input text_pole" placeholder="Search chats..." />
+            <button class="chatplus-search-clear" id="chatplus-recent-clear" title="Clear search">✕</button>
+          </div>
+          <!-- Edit-mode toggle is injected here by RecentChatsView at runtime -->
         </div>
+        <!-- "N selected" hint + bulk toolbar are injected here by RecentChatsView when edit mode is active -->
       </div>
       <div class="chatplus-recent-list" id="chatplus-recent-list">
         <!-- Recent chats will be rendered here -->
@@ -39,19 +58,18 @@
           <p>Recent chats will appear here</p>
         </div>
       </div>
-      <div class="chatplus-recent-footer">
-        <button class="chatplus-load-more menu_button" id="chatplus-load-more" style="display: none">Load More</button>
-      </div>
     </div>
 
     <!-- Folders Tab -->
     <div class="chatplus-tab-content" data-chatplus-tab="folders">
       <div class="chatplus-folders-header">
+        <button class="menu_button chatplus-icon-btn" id="chatplus-new-folder" title="New folder" aria-label="New folder">
+          <i class="fa-solid fa-folder-plus" aria-hidden="true"></i>
+        </button>
         <div class="chatplus-search-bar">
           <input type="text" id="chatplus-folders-search" class="chatplus-search-input text_pole" placeholder="Search folders..." />
           <button class="chatplus-search-clear" id="chatplus-folders-clear" title="Clear search">✕</button>
         </div>
-        <button class="chatplus-new-folder menu_button" id="chatplus-new-folder">+ New Folder</button>
       </div>
       <div class="chatplus-folders-list" id="chatplus-folders-list">
         <!-- Folders will be rendered here -->
@@ -62,54 +80,3 @@
     </div>
   </div>
 </div>
-
-<!-- Settings Panel (extracted and injected into #extensions_settings2 by index.js) -->
-<template id="chatplus-settings-template">
-  <div id="chatplus2-settings-drawer" class="inline-drawer">
-    <div class="inline-drawer-toggle inline-drawer-header">
-      <b>ChatPlus 2</b>
-      <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
-    </div>
-    <div class="inline-drawer-content">
-      <!-- Enable/Disable -->
-      <label class="checkbox_label" for="chatplus2-settings-enabled">
-        <input type="checkbox" id="chatplus2-settings-enabled" />
-        <span>Enable ChatPlus 2 (needs reload)</span>
-      </label>
-
-      <!-- Default Tab -->
-      <div class="chatplus-settings-section">
-        <b>Default Tab on Startup:</b>
-        <div class="chatplus-settings-tab-row" id="chatplus2-settings-default-tab">
-          <button class="menu_button" data-tab="characters">Characters</button>
-          <button class="menu_button" data-tab="recent">Recent Chats</button>
-          <button class="menu_button" data-tab="folders">Folders</button>
-        </div>
-      </div>
-
-      <!-- Backup Management -->
-      <div class="chatplus-settings-section">
-        <b>Backup Management:</b>
-        <span>Import/Export current extension data:</span>
-        <div class="chatplus-settings-btn-row">
-          <button id="chatplus2-settings-import" class="menu_button"><i class="fa-solid fa-file-import"></i> Import</button>
-          <button id="chatplus2-settings-export" class="menu_button"><i class="fa-solid fa-file-export"></i> Export</button>
-        </div>
-      </div>
-
-      <!-- Manual Reload -->
-      <div class="chatplus-settings-section">
-        <b>Manual Reload:</b>
-        <p class="chatplus-settings-hint">If tabs become unresponsive, use this to reload them.</p>
-        <button id="chatplus2-settings-reload" class="menu_button"><i class="fa-solid fa-arrows-rotate"></i> Reload Tabs</button>
-      </div>
-
-      <!-- V1 Migration Notice (hidden by default) -->
-      <div id="chatplus2-settings-migration" class="chatplus-settings-section chatplus-settings-migration" style="display: none">
-        <b>Migration Available:</b>
-        <p class="chatplus-settings-hint">ChatPlus v1 settings detected. Migrate your pins and folders to v2.</p>
-        <button id="chatplus2-settings-migrate" class="menu_button"><i class="fa-solid fa-right-left"></i> Migrate Now</button>
-      </div>
-    </div>
-  </div>
-</template>

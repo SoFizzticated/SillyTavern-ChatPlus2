@@ -1,0 +1,257 @@
+/**
+ * ChatPlus 2 — Snapshot Database Viewer Styles (Mobile-First)
+ */
+
+/* ─────────────────────────────────────────
+   OVERLAY & MODAL — MOBILE-FIRST BASE
+   ───────────────────────────────────────── */
+
+.chatplus-snapshot-viewer-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 9500;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    animation: chatplus-sv-fadein 0.15s ease-out;
+}
+
+@keyframes chatplus-sv-fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.chatplus-snapshot-viewer-modal {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 85vh;
+    border-radius: 12px 12px 0 0;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    border-bottom: none;
+    background: var(--SmartThemeBlurTintColor, var(--SmartThemeBotMesBlurTintColor, #1a1a2e));
+    color: var(--SmartThemeBodyColor, #cdd6f4);
+    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    animation: chatplus-sv-slideup 0.2s ease-out;
+}
+
+@keyframes chatplus-sv-slideup {
+    from { transform: translateY(40px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Header ── */
+.chatplus-snapshot-viewer-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    flex-shrink: 0;
+}
+
+.chatplus-snapshot-viewer-title {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chatplus-snapshot-viewer-count {
+    font-size: 0.8em;
+    opacity: 0.6;
+    margin-left: auto;
+}
+
+.chatplus-snapshot-viewer-close {
+    margin-left: 6px;
+    padding: 4px 8px;
+    flex-shrink: 0;
+}
+
+/* ── Search Bar ── */
+.chatplus-snapshot-viewer-searchbar {
+    position: relative;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.06));
+    flex-shrink: 0;
+}
+
+.chatplus-snapshot-viewer-search-icon {
+    position: absolute;
+    top: 50%;
+    left: 24px;
+    transform: translateY(-50%);
+    font-size: 0.85em;
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.chatplus-snapshot-viewer-search {
+    width: 100%;
+    padding: 6px 10px 6px 30px;
+    font-size: 0.9em;
+    box-sizing: border-box;
+}
+
+/* ── Table ── */
+.chatplus-snapshot-viewer-table-wrap {
+    flex: 1;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.chatplus-snapshot-viewer-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85em;
+    table-layout: fixed;
+}
+
+.chatplus-snapshot-viewer-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--SmartThemeBlurTintColor, var(--SmartThemeBotMesBlurTintColor, #1a1a2e));
+    box-shadow: 0 1px 0 0 var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+}
+
+.chatplus-snapshot-viewer-table th {
+    padding: 0;
+    text-align: left;
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+/* Column widths (wider key, flexible message, compact date) */
+.chatplus-snapshot-viewer-table th:nth-child(1),
+.chatplus-snapshot-viewer-table td:nth-child(1) { width: 28%; }
+.chatplus-snapshot-viewer-table th:nth-child(2),
+.chatplus-snapshot-viewer-table td:nth-child(2) { width: auto; }
+.chatplus-snapshot-viewer-table th:nth-child(3),
+.chatplus-snapshot-viewer-table td:nth-child(3) { width: 140px; }
+
+.chatplus-snapshot-viewer-sort {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.chatplus-snapshot-viewer-sort:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.chatplus-snapshot-viewer-sort-icon {
+    font-size: 0.8em;
+    opacity: 0.4;
+}
+
+.chatplus-snapshot-viewer-sort.chatplus-active .chatplus-snapshot-viewer-sort-icon {
+    opacity: 1;
+}
+
+.chatplus-snapshot-viewer-table tbody tr {
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.06));
+    transition: background 0.1s;
+}
+
+.chatplus-snapshot-viewer-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.chatplus-snapshot-viewer-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.chatplus-snapshot-viewer-table td {
+    padding: 8px 12px;
+    vertical-align: top;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chatplus-snapshot-viewer-cell-key {
+    font-family: monospace;
+    font-size: 0.95em;
+    word-break: break-all;
+    opacity: 0.85;
+}
+
+.chatplus-snapshot-viewer-cell-message {
+    word-break: break-word;
+}
+
+.chatplus-snapshot-viewer-cell-updated {
+    white-space: nowrap;
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Empty State ── */
+.chatplus-snapshot-viewer-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 20px;
+    opacity: 0.5;
+    font-size: 0.95em;
+    flex: 1;
+}
+
+.chatplus-snapshot-viewer-empty i {
+    font-size: 2em;
+}
+
+.chatplus-snapshot-viewer-empty p {
+    margin: 0;
+    text-align: center;
+}
+
+/* ── Footer ── */
+.chatplus-snapshot-viewer-footer {
+    padding: 8px 14px;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    font-size: 0.8em;
+    opacity: 0.7;
+    flex-shrink: 0;
+    text-align: right;
+}
+
+/* ─────────────────────────────────────────
+   DESKTOP — CENTERED MODAL ≥768px
+   ───────────────────────────────────────── */
+@media (min-width: 768px) {
+    .chatplus-snapshot-viewer-overlay {
+        align-items: center;
+    }
+
+    .chatplus-snapshot-viewer-modal {
+        width: min(900px, 92vw);
+        height: min(720px, 85vh);
+        border-radius: 12px;
+        border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    @keyframes chatplus-sv-slideup {
+        from { transform: translateY(20px) scale(0.98); opacity: 0; }
+        to   { transform: translateY(0) scale(1);       opacity: 1; }
+    }
+}

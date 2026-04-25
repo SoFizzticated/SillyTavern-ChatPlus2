@@ -1,0 +1,134 @@
+<!-- ChatPlus 2 Settings Panel (injected into #extensions_settings2 by index.js) -->
+<template id="chatplus-settings-template">
+  <div id="chatplus2-settings-drawer" class="inline-drawer">
+    <div class="inline-drawer-toggle inline-drawer-header">
+      <span class="chatplus-settings-drawer-title">
+        <i class="fa-solid fa-comments chatplus-settings-drawer-logo" aria-hidden="true"></i>
+        <b>ChatPlus 2</b>
+      </span>
+      <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+    </div>
+    <div class="inline-drawer-content">
+      <!-- ═══════════════ GENERAL ═══════════════ -->
+      <section class="chatplus-settings-group" data-group="general">
+        <h4 class="chatplus-settings-group-heading">General</h4>
+
+        <div class="chatplus-settings-section">
+          <label class="checkbox_label chatplus-settings-enable-label" for="chatplus2-settings-enabled">
+            <input type="checkbox" id="chatplus2-settings-enabled" />
+            <span>Enable ChatPlus 2 (needs reload)</span>
+          </label>
+          <button id="chatplus2-settings-inline-reload" class="menu_button chatplus-settings-inline-reload" type="button" hidden><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Reload now</button>
+        </div>
+
+        <div class="chatplus-settings-section">
+          <span class="chatplus-settings-group-label">Default Tab on Startup</span>
+          <div class="chatplus-settings-tab-row" id="chatplus2-settings-default-tab">
+            <button class="menu_button" data-tab="characters" type="button">Characters</button>
+            <button class="menu_button" data-tab="recent" type="button">Recent Chats</button>
+            <button class="menu_button" data-tab="folders" type="button">Folders</button>
+          </div>
+        </div>
+
+        <div class="chatplus-settings-section">
+          <label class="chatplus-settings-group-label" for="chatplus2-settings-page-size">Chats Per Page</label>
+          <select id="chatplus2-settings-page-size" class="text_pole">
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="200">200</option>
+          </select>
+        </div>
+
+        <div class="chatplus-settings-section">
+          <span class="chatplus-settings-group-label">Recent List Layout</span>
+          <span class="chatplus-settings-hint">Choose how Recent-tab rows are organised inside each day bucket.</span>
+          <div class="chatplus-settings-tab-row chatplus-layout-preview-row" id="chatplus2-settings-recent-layout">
+            <button class="menu_button chatplus-layout-preview" data-layout="flat" type="button" title="Each row shows the character/group name followed by the chat filename.">
+              <span class="chatplus-layout-preview-title">Flat list</span>
+              <span class="chatplus-layout-preview-body" aria-hidden="true">
+                <span class="chatplus-layout-preview-row-mock"><span class="chatplus-layout-preview-dot"></span>Alice: chat_log</span>
+                <span class="chatplus-layout-preview-row-mock"><span class="chatplus-layout-preview-dot"></span>Bob: saturday</span>
+                <span class="chatplus-layout-preview-row-mock"><span class="chatplus-layout-preview-dot"></span>Alice: midnight</span>
+              </span>
+            </button>
+            <button class="menu_button chatplus-layout-preview" data-layout="grouped" type="button" title="Rows are grouped under a small character header; filenames appear alone.">
+              <span class="chatplus-layout-preview-title">Grouped by character</span>
+              <span class="chatplus-layout-preview-body" aria-hidden="true">
+                <span class="chatplus-layout-preview-header-mock"><span class="chatplus-layout-preview-dot"></span>Alice</span>
+                <span class="chatplus-layout-preview-row-mock chatplus-layout-preview-row-mock--indent">chat_log</span>
+                <span class="chatplus-layout-preview-row-mock chatplus-layout-preview-row-mock--indent">midnight</span>
+                <span class="chatplus-layout-preview-header-mock"><span class="chatplus-layout-preview-dot"></span>Bob</span>
+                <span class="chatplus-layout-preview-row-mock chatplus-layout-preview-row-mock--indent">saturday</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ DATA ═══════════════ -->
+      <section class="chatplus-settings-group" data-group="data">
+        <h4 class="chatplus-settings-group-heading">Data</h4>
+
+        <div class="chatplus-settings-section">
+          <span class="chatplus-settings-group-label">Backup Management</span>
+          <span class="chatplus-settings-hint">Import or export your pins, folders, and settings.</span>
+          <div class="chatplus-settings-btn-row">
+            <button id="chatplus2-settings-import" class="menu_button" type="button"><i class="fa-solid fa-file-import"></i> Import</button>
+            <button id="chatplus2-settings-export" class="menu_button" type="button"><i class="fa-solid fa-file-export"></i> Export</button>
+          </div>
+        </div>
+
+        <div class="chatplus-settings-section">
+          <span class="chatplus-settings-group-label">Snapshot Database</span>
+          <span class="chatplus-settings-hint">Last-message snapshots for tracked chats. Stored in <code>user/files/chatplus2-snapshots.json</code>.</span>
+          <span class="chatplus-settings-pill" id="chatplus2-snapshot-info">
+            <i class="fa-solid fa-database chatplus-settings-pill-icon" aria-hidden="true"></i>
+            <span class="chatplus-settings-pill-text">Loading…</span>
+          </span>
+          <div class="chatplus-settings-btn-row">
+            <button id="chatplus2-snapshot-view" class="menu_button" type="button"><i class="fa-solid fa-eye"></i> View</button>
+            <button id="chatplus2-snapshot-export" class="menu_button" type="button"><i class="fa-solid fa-file-export"></i> Export</button>
+            <button id="chatplus2-snapshot-import" class="menu_button" type="button"><i class="fa-solid fa-file-import"></i> Import</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════════════ MAINTENANCE ═══════════════ -->
+      <section class="chatplus-settings-group" data-group="maintenance">
+        <h4 class="chatplus-settings-group-heading">Maintenance</h4>
+
+        <div class="chatplus-settings-section">
+          <span class="chatplus-settings-group-label">Manual Reload</span>
+          <span class="chatplus-settings-hint">If tabs become unresponsive, use this to reload them.</span>
+          <button id="chatplus2-settings-reload" class="menu_button" type="button"><i class="fa-solid fa-arrows-rotate"></i> Reload Tabs</button>
+        </div>
+
+        <div class="chatplus-settings-section">
+          <span class="chatplus-settings-group-label">Lost &amp; Found</span>
+          <span class="chatplus-settings-hint">Scan for orphaned chat references (renamed or deleted chats) and reconcile them.</span>
+          <button id="chatplus2-settings-lostfound" class="menu_button" type="button"><i class="fa-solid fa-magnifying-glass-location"></i> Scan &amp; Resolve</button>
+        </div>
+
+        <div class="chatplus-settings-section">
+          <span class="chatplus-settings-group-label">Updates</span>
+          <span class="chatplus-settings-hint">Opens SillyTavern's Installed Extensions dialog, which automatically checks this extension for updates.</span>
+          <button id="chatplus2-settings-update" class="menu_button" type="button"><i class="fa-solid fa-cloud-arrow-down"></i> Check for Updates</button>
+        </div>
+
+        <div class="chatplus-settings-section">
+          <span class="chatplus-settings-group-label">Feedback &amp; Bug Reports</span>
+          <span class="chatplus-settings-hint">Open a ticket on GitHub. Include reproduction steps and console logs when possible.</span>
+          <button id="chatplus2-settings-feedback" class="menu_button" type="button"><i class="fa-solid fa-bug"></i> Report an Issue</button>
+        </div>
+
+        <!-- V1 Migration Notice (hidden by default) -->
+        <div id="chatplus2-settings-migration" class="chatplus-settings-section chatplus-settings-migration" style="display: none">
+          <span class="chatplus-settings-group-label">Migration Available</span>
+          <span class="chatplus-settings-hint">ChatPlus v1 settings detected. Migrate your pins and folders to v2.</span>
+          <button id="chatplus2-settings-migrate" class="menu_button" type="button"><i class="fa-solid fa-right-left"></i> Migrate Now</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</template>

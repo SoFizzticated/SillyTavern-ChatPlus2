@@ -1,0 +1,862 @@
+/**
+ * ChatPlus 2 — Lost & Found Resolver Styles (Mobile-First)
+ *
+ * Layout: header → pagination → two-pane body (orphan | candidate) → footer.
+ *
+ * Mobile  (<768px): panes stacked vertically.
+ * Desktop (≥768px): panes side-by-side. Candidate pane is flex:1 (preview is
+ *                   the dominant visual focus), orphan pane is flex:0 0 38%.
+ */
+
+/* ─────────────────────────────────────────
+   OVERLAY & MODAL
+   ───────────────────────────────────────── */
+
+.chatplus-lostfound-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    animation: chatplus-lf-fadein 0.15s ease-out;
+}
+
+@keyframes chatplus-lf-fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.chatplus-lostfound-modal {
+    display: flex;
+    flex-direction: column;
+    width: 100vw;
+    height: 95vh;
+    margin: 25px 15px;
+    border-radius: 12px 12px 0 0;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+    border-bottom: none;
+    background: var(--SmartThemeBlurTintColor, #1a1a2e);
+    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    animation: chatplus-lf-slideup 0.2s ease-out;
+}
+
+@keyframes chatplus-lf-slideup {
+    from { transform: translateY(40px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* ── Header ── */
+.chatplus-lostfound-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    flex-shrink: 0;
+}
+
+.chatplus-lostfound-title {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.chatplus-lostfound-count {
+    font-size: 0.8em;
+    opacity: 0.6;
+    margin-left: auto;
+}
+
+.chatplus-lostfound-close {
+    margin-left: 6px;
+    padding: 4px 8px;
+    flex-shrink: 0;
+}
+
+/* ── Pagination strip ── */
+.chatplus-lf-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 6px 14px;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.06));
+    flex-shrink: 0;
+}
+
+.chatplus-lf-pager-prev,
+.chatplus-lf-pager-next {
+    padding: 4px 10px;
+    font-size: 0.85em;
+}
+
+.chatplus-lf-pager-prev:disabled,
+.chatplus-lf-pager-next:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.chatplus-lf-pager-indicator {
+    font-size: 0.85em;
+    font-weight: 600;
+    opacity: 0.75;
+    min-width: 55px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Empty State (no orphans at all) ── */
+.chatplus-lostfound-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 20px;
+    opacity: 0.5;
+    font-size: 0.95em;
+    flex: 1;
+}
+
+.chatplus-lostfound-empty i {
+    font-size: 2em;
+    color: #4caf50;
+}
+
+/* ─────────────────────────────────────────
+   TWO-PANE BODY (mobile: stacked; desktop: side-by-side)
+   ───────────────────────────────────────── */
+
+.chatplus-lf-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.chatplus-lf-orphan-pane,
+.chatplus-lf-candidate-pane {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.chatplus-lf-orphan-pane {
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    background: rgba(255, 80, 60, 0.03);
+}
+
+.chatplus-lf-candidate-pane {
+    background: rgba(76, 175, 80, 0.03);
+}
+
+/* ── Mobile tab switcher (shown only < 768px; hidden via desktop media query) ── */
+.chatplus-lf-mobile-tabs {
+    display: flex;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.chatplus-lf-mobile-tab {
+    flex: 1 1 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: inherit;
+    opacity: 0.6;
+    font-size: 0.85em;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition: background 0.12s ease, opacity 0.12s ease, border-color 0.12s ease;
+}
+
+.chatplus-lf-mobile-tab:hover:not(.is-active) {
+    background: rgba(255, 255, 255, 0.04);
+    opacity: 0.85;
+}
+
+.chatplus-lf-mobile-tab.is-active {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.04);
+    border-bottom-color: var(--SmartThemeFavColor, #4caf50);
+}
+
+.chatplus-lf-mobile-tab[data-pane="orphan"].is-active {
+    border-bottom-color: rgba(255, 140, 130, 0.9);
+}
+
+.chatplus-lf-mobile-tab[data-pane="candidate"].is-active {
+    border-bottom-color: rgba(120, 220, 140, 0.9);
+}
+
+.chatplus-lf-mobile-tab i {
+    font-size: 0.95em;
+}
+
+/* Drive which pane is visible on mobile via data-active-pane on .chatplus-lf-body */
+.chatplus-lf-body[data-active-pane="orphan"] .chatplus-lf-candidate-pane {
+    display: none;
+}
+
+.chatplus-lf-body[data-active-pane="candidate"] .chatplus-lf-orphan-pane {
+    display: none;
+}
+
+/* When a single pane is visible on mobile, drop the divider border that only
+   made sense in the stacked-pair layout. */
+.chatplus-lf-body[data-active-pane="orphan"] .chatplus-lf-orphan-pane {
+    border-bottom: none;
+}
+
+/* ─────────────────────────────────────────
+   ORPHAN PANE (left)
+   ───────────────────────────────────────── */
+
+.chatplus-lf-orphan-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 2px 8px;
+    border-bottom: 1px solid rgba(255, 80, 60, 0.15);
+}
+
+.chatplus-lf-orphan-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.chatplus-lf-orphan-identity {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.chatplus-lf-orphan-charname {
+    font-weight: 600;
+    font-size: 0.95em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chatplus-lf-orphan-filename {
+    font-size: 0.78em;
+    font-family: monospace;
+    opacity: 0.6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chatplus-lf-missing-tag {
+    font-size: 0.68em;
+    padding: 3px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+    background: rgba(255, 80, 60, 0.18);
+    color: rgba(255, 140, 130, 0.95);
+    border: 1px solid rgba(255, 80, 60, 0.35);
+}
+
+/* ── Section Labels ── */
+.chatplus-lf-section-label {
+    font-size: 0.72em;
+    font-weight: 700;
+    text-transform: uppercase;
+    opacity: 0.65;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 2px;
+}
+
+.chatplus-lf-section-label small {
+    font-weight: 400;
+    opacity: 0.7;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* ── Origin breakdown (where it was) ── */
+.chatplus-lf-origin {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.chatplus-lf-origin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.chatplus-lf-origin-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.85em;
+}
+
+.chatplus-lf-origin-item i {
+    flex-shrink: 0;
+    opacity: 0.75;
+}
+
+.chatplus-lf-origin-item--pin i {
+    color: rgba(100, 180, 255, 0.95);
+}
+
+.chatplus-lf-origin-item--folder i {
+    color: rgba(180, 150, 255, 0.95);
+}
+
+.chatplus-lf-origin-item--transient {
+    opacity: 0.6;
+    font-style: italic;
+}
+
+.chatplus-lf-origin-label {
+    flex-shrink: 0;
+    font-weight: 600;
+    opacity: 0.85;
+}
+
+.chatplus-lf-origin-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+    flex-wrap: wrap;
+    font-size: 0.92em;
+}
+
+.chatplus-lf-origin-breadcrumb-sep {
+    opacity: 0.4;
+    font-size: 0.85em;
+}
+
+.chatplus-lf-origin-breadcrumb-crumb {
+    max-width: 140px;
+}
+
+.chatplus-lf-origin-breadcrumb-crumb--leaf {
+    font-weight: 600;
+}
+
+.chatplus-lf-origin-missing {
+    opacity: 0.5;
+    font-style: italic;
+    font-size: 0.8em;
+    padding: 4px 2px;
+}
+
+/* ── Snapshot message (stored last-seen) ── */
+.chatplus-lf-snapshot {
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(255, 80, 60, 0.06);
+    border: 1px solid rgba(255, 80, 60, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.chatplus-lf-snapshot-body {
+    font-size: 0.82em;
+    opacity: 0.85;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.4;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.chatplus-lf-snapshot-empty {
+    font-size: 0.8em;
+    opacity: 0.5;
+    font-style: italic;
+}
+
+/* ── Orphan key (raw, for reference) ── */
+.chatplus-lf-orphan-key {
+    font-family: monospace;
+    font-size: 0.72em;
+    opacity: 0.45;
+    word-break: break-all;
+    padding: 2px 0;
+}
+
+/* ─────────────────────────────────────────
+   CANDIDATE PANE (right)
+   ───────────────────────────────────────── */
+
+.chatplus-lf-candidate-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px 2px 8px;
+    border-bottom: 1px solid rgba(76, 175, 80, 0.15);
+}
+
+.chatplus-lf-candidate-empty {
+    font-size: 0.85em;
+    opacity: 0.5;
+    font-style: italic;
+    padding: 6px 2px;
+}
+
+/* ── Preview Panel (last ~20 messages of selected candidate) ── */
+.chatplus-lf-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    flex: 1 1 auto;
+    min-height: 160px;
+    max-height: 100%;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.chatplus-lf-preview-status {
+    font-size: 0.82em;
+    opacity: 0.55;
+    font-style: italic;
+    padding: 8px 2px;
+    text-align: center;
+}
+
+.chatplus-lf-preview-msg {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.chatplus-lf-preview-msg:last-child {
+    border-bottom: none;
+}
+
+.chatplus-lf-preview-name {
+    font-size: 0.7em;
+    font-weight: 600;
+    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.chatplus-lf-preview-msg--user .chatplus-lf-preview-name {
+    color: rgba(120, 190, 255, 0.95);
+}
+.chatplus-lf-preview-msg--ai .chatplus-lf-preview-name {
+    color: rgba(180, 150, 255, 0.95);
+}
+
+.chatplus-lf-preview-text {
+    font-size: 0.83em;
+    opacity: 0.85;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.4;
+    max-height: 7.5em;
+    overflow: scroll;
+    position: relative;
+}
+
+/* ── Searchable Dropdown ── */
+.chatplus-lf-dropdown {
+    position: relative;
+}
+
+.chatplus-lf-dropdown-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: left;
+    font-size: 0.88em;
+    padding: 6px 10px;
+}
+
+.chatplus-lf-dropdown-label {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chatplus-lf-dropdown-icon {
+    font-size: 0.7em;
+    opacity: 0.5;
+    flex-shrink: 0;
+    transition: transform 0.15s;
+}
+
+.chatplus-lf-dropdown-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    z-index: 10;
+    margin-top: 4px;
+    border-radius: 6px;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.15));
+    background: var(--SmartThemeBlurTintColor, #1a1a2e);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+}
+
+.chatplus-lf-dropdown-search {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    border-radius: 0;
+    padding: 8px 10px;
+    font-size: 0.85em;
+    box-sizing: border-box;
+}
+
+.chatplus-lf-dropdown-options {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.chatplus-lf-dropdown-group-header {
+    padding: 6px 10px;
+    font-size: 0.7em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--SmartThemeQuoteColor, rgba(255, 255, 255, 0.55));
+    background: rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.chatplus-lf-dropdown-option {
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.chatplus-lf-dropdown-option:last-child {
+    border-bottom: none;
+}
+
+.chatplus-lf-dropdown-option:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.chatplus-lf-dropdown-option.selected {
+    background: var(--SmartThemeFavColor, rgba(100, 160, 255, 0.12));
+}
+
+.chatplus-lf-option-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chatplus-lf-option-name {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.85em;
+}
+
+.chatplus-lf-option-excerpt {
+    font-size: 0.75em;
+    opacity: 0.5;
+    font-style: italic;
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Confidence Badges ── */
+.chatplus-lostfound-confidence {
+    font-size: 0.68em;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+.chatplus-lostfound-confidence--high {
+    background: rgba(76, 175, 80, 0.2);
+    color: rgba(100, 220, 100, 0.9);
+}
+
+.chatplus-lostfound-confidence--exact {
+    background: rgba(64, 200, 255, 0.22);
+    color: rgba(120, 220, 255, 0.95);
+    border: 1px solid rgba(120, 220, 255, 0.55);
+    padding-block: 1px;
+}
+
+.chatplus-lostfound-confidence--exact::before {
+    content: '\f00c'; /* fa-check */
+    font-family: 'Font Awesome 6 Free';
+    font-weight: 900;
+    margin-right: 4px;
+    font-size: 0.9em;
+}
+
+.chatplus-lostfound-confidence--medium {
+    background: rgba(255, 180, 50, 0.2);
+    color: rgba(255, 200, 80, 0.9);
+}
+
+.chatplus-lostfound-confidence--low {
+    background: rgba(255, 100, 80, 0.2);
+    color: rgba(255, 130, 100, 0.9);
+}
+
+/* ── Decision status chip shown in the candidate pane header ── */
+.chatplus-lf-decision-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    align-self: flex-start;
+    font-size: 0.72em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.chatplus-lf-decision-chip--relink {
+    background: rgba(76, 175, 80, 0.2);
+    color: rgba(100, 220, 100, 0.95);
+}
+.chatplus-lf-decision-chip--remove {
+    background: rgba(255, 90, 80, 0.2);
+    color: rgba(255, 130, 120, 0.95);
+}
+.chatplus-lf-decision-chip--skip {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ─────────────────────────────────────────
+   FOOTER (actions + batch bar)
+   ───────────────────────────────────────── */
+
+.chatplus-lf-footer {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+}
+
+.chatplus-lf-match-actions {
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+}
+
+.chatplus-lf-match-actions .menu_button {
+    font-size: 0.82em;
+    padding: 5px 10px;
+}
+
+.chatplus-lf-btn-ignore {
+    flex: 0 0 auto;
+}
+
+.chatplus-lf-btn-delete {
+    flex: 0 0 auto;
+    color: rgba(255, 140, 130, 0.95);
+    border-color: rgba(255, 80, 60, 0.35) !important;
+}
+.chatplus-lf-btn-delete:hover {
+    background: rgba(255, 80, 60, 0.12);
+}
+
+.chatplus-lf-btn-reconnect {
+    flex: 1 1 auto;
+    text-align: center;
+}
+
+/* ── Inline Delete Confirmation Strip ── */
+.chatplus-lf-confirm-strip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(255, 80, 60, 0.08);
+    border-top: 1px solid rgba(255, 80, 60, 0.25);
+    font-size: 0.85em;
+}
+
+.chatplus-lf-confirm-strip-msg {
+    flex: 1;
+    min-width: 0;
+}
+
+.chatplus-lf-confirm-strip .menu_button {
+    font-size: 0.82em;
+    padding: 4px 10px;
+    flex-shrink: 0;
+}
+
+.chatplus-lf-confirm-strip-ok {
+    color: rgba(255, 140, 130, 0.95);
+    border-color: rgba(255, 80, 60, 0.45) !important;
+}
+.chatplus-lf-confirm-strip-ok:hover {
+    background: rgba(255, 80, 60, 0.18);
+}
+
+/* ── Batch Action Bar ── */
+.chatplus-lostfound-actions {
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.06));
+}
+
+.chatplus-lostfound-actions .menu_button {
+    font-size: 0.8em;
+    padding: 5px 10px;
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+}
+
+/* ─────────────────────────────────────────
+   MOBILE DROPDOWN BEHAVIOUR (< 768px)
+   Touch devices: don't auto-focus the search input (44a) — that
+   spawns the on-screen keyboard inside the bottom-sheet modal and
+   crushes the candidate list. The JS already gates focus() on
+   `(hover: hover) and (pointer: fine)`. Here we ensure that, when
+   the user *does* deliberately tap the search input, the panel is
+   tall enough to remain useful, and option rows are touch-friendly.
+   ───────────────────────────────────────── */
+
+@media screen and (max-width: 767px) {
+    .chatplus-lf-dropdown-panel {
+        max-height: 50vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chatplus-lf-dropdown-options {
+        max-height: none;
+        flex: 1 1 auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .chatplus-lf-dropdown-option {
+        padding: 12px 12px;
+    }
+
+    .chatplus-lf-dropdown-search {
+        font-size: 16px; /* prevents iOS Safari auto-zoom-on-focus */
+        padding: 10px 12px;
+    }
+}
+
+/* ─────────────────────────────────────────
+   DESKTOP OVERRIDES (≥ 768px)
+   Side-by-side layout. Candidate pane dominates.
+   ───────────────────────────────────────── */@media screen and (min-width: 768px) {
+    .chatplus-lostfound-overlay {
+        align-items: center;
+    }
+
+    .chatplus-lostfound-modal {
+        width: min(1000px, 94vw);
+        height: 100%;
+        max-height: min(760px, 90vh);
+        border-radius: 10px;
+        border-bottom: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+        animation: chatplus-lf-scalein 0.15s ease-out;
+    }
+
+    @keyframes chatplus-lf-scalein {
+        from { transform: scale(0.95); opacity: 0; }
+        to   { transform: scale(1);    opacity: 1; }
+    }
+
+    .chatplus-lf-body {
+        flex-direction: row;
+    }
+
+    /* Hide the mobile-only tab switcher and force both panes visible */
+    .chatplus-lf-mobile-tabs {
+        display: none;
+    }
+
+    .chatplus-lf-body[data-active-pane="orphan"] .chatplus-lf-candidate-pane,
+    .chatplus-lf-body[data-active-pane="candidate"] .chatplus-lf-orphan-pane {
+        display: flex;
+    }
+
+    .chatplus-lf-orphan-pane {
+        flex: 0 0 38%;
+        max-width: 400px;
+        border-bottom: none;
+        border-right: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    }
+
+    .chatplus-lf-candidate-pane {
+        flex: 1 1 auto;
+    }
+
+    .chatplus-lf-orphan-avatar {
+        width: 48px;
+        height: 48px;
+    }
+}

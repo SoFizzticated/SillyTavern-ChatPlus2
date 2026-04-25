@@ -20,8 +20,12 @@ export class StateManager {
         chatFolders: {},           // Map of chatKey -> array of folderIds
         defaultTab: 'recent',      // Default active tab: 'characters', 'recent', or 'folders'
         enabled: true,             // Extension enabled/disabled state
+        pageSize: 100,             // Number of chats per page (25, 50, 100, or 200)
+        recentListGroupByCharacter: false, // Recent tab: group rows under per-character separators (hides the "CharName: " prefix on each row)
+        expandedFolders: [],       // Array of folder IDs that are currently expanded
         lastMigrationCheck: null,  // Timestamp of last v1 migration check
-        migrationCompleted: false  // Whether v1 migration has been completed
+        migrationCompleted: false, // Whether v1 migration has been completed
+        _lastRanVersion: null      // Last extension version that ran onInstall/onUpdate (set by lifecycle hooks in index.js)
     };
 
     constructor() {
@@ -177,6 +181,88 @@ export class StateManager {
         this.settings = { ...StateManager.DEFAULT_SETTINGS };
         this.save(immediate);
         console.debug('[ChatPlus2] Settings reset to defaults');
+    }
+
+    /**
+     * Registered data migrations, ordered oldest → newest.
+     * Each entry: { from: string, to: string, run: async (settings) => boolean | void }
+     * The `run` callback mutates `settings` in place and returns a truthy value
+     * if anything changed (so the caller can count how many actually mutated state).
+     *
+     * Empty by default — populate as the settings schema evolves between versions.
+     *
+     * @type {Array<{from: string, to: string, run: (settings: Object) => (Promise<boolean|void>|boolean|void)}>}
+     */
+    static MIGRATIONS = [
+        // Example (keep commented until a real migration is needed):
+        // {
+        //     from: '2.0.0',
+        //     to: '2.1.0',
+        //     run: async (settings) => {
+        //         if (!('newField' in settings)) {
+        //             settings.newField = 'default';
+        //             return true;
+        //         }
+        //         return false;
+        //     }
+        // }
+    ];
+
+    /**
+     * Run any registered data migrations whose `from` version matches
+     * `fromVersion` (chained — the output `to` feeds into the next entry's `from`).
+     * Called by `onUpdate()` in index.js after a successful extension update.
+     *
+     * Idempotent: safe to re-run. If `fromVersion` doesn't match any entry,
+     * returns `null` (no work to do).
+     *
+     * @param {string|null} fromVersion - The version stamped on previous run
+     * @param {string} toVersion - The current extension version
+     * @returns {Promise<{migrationsRun: number, notes: string[]}|null>}
+     */
+    async runMigrations(fromVersion, toVersion) {
+        if (!this.settings) {
+            console.warn('[ChatPlus2] runMigrations: settings not loaded, skipping');
+            return null;
+        }
+        if (!StateManager.MIGRATIONS || StateManager.MIGRATIONS.length === 0) {
+            console.debug(`[ChatPlus2] runMigrations(${fromVersion} → ${toVersion}) — nothing registered`);
+            return null;
+        }
+
+        const notes = [];
+        let migrationsRun = 0;
+        let cursor = fromVersion;
+
+        // Chain through matching entries. Stops when no entry starts at `cursor` or we reach `toVersion`.
+        let safetyCounter = 0;
+        while (cursor !== toVersion && safetyCounter++ < StateManager.MIGRATIONS.length + 1) {
+            const entry = StateManager.MIGRATIONS.find(m => m.from === cursor);
+            if (!entry) break;
+            try {
+                const changed = await entry.run(this.settings);
+                if (changed) {
+                    migrationsRun++;
+                    notes.push(`${entry.from} → ${entry.to}`);
+                } else {
+                    notes.push(`${entry.from} → ${entry.to} (no-op)`);
+                }
+                cursor = entry.to;
+            } catch (err) {
+                console.error(`[ChatPlus2] Migration ${entry.from} → ${entry.to} failed:`, err);
+                notes.push(`${entry.from} → ${entry.to} (error: ${err.message})`);
+                break;
+            }
+        }
+
+        if (migrationsRun > 0) {
+            await this.save(true);
+            console.log(`[ChatPlus2] runMigrations: ${migrationsRun} migration(s) applied`, notes);
+        } else {
+            console.debug(`[ChatPlus2] runMigrations: no applicable migrations for ${fromVersion} → ${toVersion}`);
+        }
+
+        return { migrationsRun, notes };
     }
 
     /**

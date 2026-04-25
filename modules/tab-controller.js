@@ -32,6 +32,43 @@ export default class TabController {
 
         /** @type {Map<Element, Function>} Stored click handlers keyed by button element */
         this._clickHandlers = new Map();
+
+        /** @type {ResizeObserver|null} Watches tab bar width for compact mode */
+        this._resizeObserver = null;
+
+        /** @type {Element|null} The .chatplus-tab-buttons container */
+        this._tabBar = null;
+
+        /**
+         * SillyTavern's own right-panel scroll container (`.scrollableInner`
+         * inside `#right-nav-panel`). Cached at init() time. When the active
+         * tab is not `characters` we add `.chatplus-native-hidden` to this
+         * element to hide ST's character list / group / create panels
+         * without moving any DOM.
+         * @type {Element|null}
+         */
+        this._stNativeContainer = null;
+
+        /**
+         * SillyTavern's `#rm_PinAndTabs` bar (selected-char header + token
+         * info). Sits between our injected ChatPlus root (which now lives
+         * ABOVE it) and `.scrollableInner`. Hidden alongside the native
+         * container on non-Characters tabs so our panel reaches the top.
+         * @type {Element|null}
+         */
+        this._stPinAndTabs = null;
+
+        /**
+         * MutationObserver watching `#rm_ch_create_block`'s style attribute
+         * so we can flip the Characters tab icon between `fa-user` (next
+         * click → back to selected card) and `fa-users` (next click → list
+         * view) whenever ST's native toggle fires outside our code paths.
+         * @type {MutationObserver|null}
+         */
+        this._charactersIconObserver = null;
+
+        /** @type {Element|null} Cached `<i>` inside the Characters tab icon */
+        this._charactersIconEl = null;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -52,6 +89,20 @@ export default class TabController {
             console.error('[TabController] Tab elements not found in DOM');
             return false;
         }
+
+        // Cache reference to SillyTavern's own scroll container so we can
+        // toggle its visibility when switching tabs. If it's missing we
+        // simply skip the toggle — ChatPlus panels still work.
+        this._stNativeContainer = document.querySelector('#right-nav-panel .scrollableInner');
+        if (!this._stNativeContainer) {
+            console.warn('[TabController] #right-nav-panel .scrollableInner not found — native visibility toggle disabled');
+        }
+
+        // Cache the selected-character / token-info bar that sits between
+        // our injected root and `.scrollableInner`. Toggled in lockstep
+        // with `_stNativeContainer` so non-Characters tabs render flush
+        // against our tab bar instead of leaving the bar visible.
+        this._stPinAndTabs = document.getElementById('rm_PinAndTabs');
 
         // Wire click handlers
         this._buttons.forEach(button => {
@@ -80,6 +131,32 @@ export default class TabController {
         const defaultTab = this.stateManager.get('defaultTab') || 'characters';
         this.activateTab(defaultTab);
 
+        // Set up ResizeObserver for compact (icon-only) mode
+        this._tabBar = document.querySelector('.chatplus-tab-buttons');
+        if (this._tabBar) {
+            this._resizeObserver = new ResizeObserver(() => this._checkCompactMode());
+            this._resizeObserver.observe(this._tabBar);
+            // Run once now to set initial state
+            this._checkCompactMode();
+        }
+
+        // Wire the Characters tab icon state swap (step 43d). The icon
+        // reflects what clicking the already-active Characters tab WOULD
+        // do: `fa-users` (list view next) when a single card is shown,
+        // `fa-user` (card view next) when the list is shown.
+        this._charactersIconEl = document.querySelector(
+            '[data-chatplus-tab="characters"] .chatplus-tab-icon i'
+        );
+        this._updateCharactersIcon();
+        const createBlock = document.getElementById('rm_ch_create_block');
+        if (createBlock && 'MutationObserver' in window) {
+            this._charactersIconObserver = new MutationObserver(() => this._updateCharactersIcon());
+            this._charactersIconObserver.observe(createBlock, {
+                attributes: true,
+                attributeFilter: ['style', 'class'],
+            });
+        }
+
         console.debug('[TabController] Initialized, default tab:', defaultTab);
         return true;
     }
@@ -107,7 +184,25 @@ export default class TabController {
             panel.classList.toggle('active', panel.dataset.chatplusTab === name);
         });
 
+        // Toggle visibility of SillyTavern's own scroll container.
+        // Characters tab → show native; any other tab → hide native so our
+        // panel takes over the right-panel area. We do NOT touch the inline
+        // `display` style of individual right_menu blocks — ST controls that.
+        const hideNative = name !== 'characters';
+        if (this._stNativeContainer) {
+            this._stNativeContainer.classList.toggle('chatplus-native-hidden', hideNative);
+        }
+        // Hide the selected-character / token-info bar in lockstep so
+        // Recent/Folders panels render flush against the ChatPlus tab bar.
+        if (this._stPinAndTabs) {
+            this._stPinAndTabs.classList.toggle('chatplus-native-hidden', hideNative);
+        }
+
         this.activeTab = name;
+
+        // Keep the Characters icon in sync — activating any tab may have
+        // changed what a future Characters re-click would do.
+        this._updateCharactersIcon();
 
         // Notify other modules (used for lazy rendering, search resets, etc.)
         CoreAPI.emit('tab-activated', { name });
@@ -134,6 +229,34 @@ export default class TabController {
      */
     _handleChatChanged(data) {
         CoreAPI.emit('chat-changed', data);
+        // Character selection may have changed; re-evaluate icon state.
+        this._updateCharactersIcon();
+    }
+
+    /**
+     * Check if tab button labels overflow the container and toggle
+     * compact (icon-only) mode accordingly.
+     * @private
+     */
+    _checkCompactMode() {
+        if (!this._tabBar || !this._buttons) return;
+
+        // Temporarily remove compact mode so we can measure full width
+        this._tabBar.classList.remove('chatplus-tabs--compact');
+
+        // Sum of all button natural widths vs available container width
+        let totalButtonWidth = 0;
+        this._buttons.forEach(btn => {
+            totalButtonWidth += btn.scrollWidth;
+        });
+        // Account for gap between buttons
+        const style = getComputedStyle(this._tabBar);
+        const gap = parseFloat(style.columnGap) || parseFloat(style.gap) || 0;
+        totalButtonWidth += gap * (this._buttons.length - 1);
+
+        if (totalButtonWidth > this._tabBar.clientWidth) {
+            this._tabBar.classList.add('chatplus-tabs--compact');
+        }
     }
 
     /**
@@ -179,6 +302,33 @@ export default class TabController {
 
         console.debug(`[TabController] Re-click on '${tabName}' → forwarding to #${hostId} .interactable`);
         target.click();
+
+        // The re-click flips ST between list and card — update our icon
+        // on the next frame once ST has updated `#rm_ch_create_block`.
+        requestAnimationFrame(() => this._updateCharactersIcon());
+    }
+
+    /**
+     * Update the Characters tab icon based on what a future click on the
+     * Characters tab would do:
+     *   - list visible (#rm_ch_create_block shown) → next click goes to
+     *     the selected character card, so show a single-user icon
+     *   - card visible → next click goes back to the list, so show a
+     *     multi-user icon
+     *
+     * Mirrors the detection logic in `_handleReclick()`.
+     * @private
+     */
+    _updateCharactersIcon() {
+        if (!this._charactersIconEl) return;
+        const createBlock = document.getElementById('rm_ch_create_block');
+        const listVisible = createBlock
+            && getComputedStyle(createBlock).display !== 'none';
+
+        // FA toggles on the `<i>` element's class list. Remove both first
+        // so we never end up with both classes after rapid state changes.
+        this._charactersIconEl.classList.remove('fa-user', 'fa-users');
+        this._charactersIconEl.classList.add(listVisible ? 'fa-user' : 'fa-users');
     }
 
     /**
@@ -188,6 +338,12 @@ export default class TabController {
     destroy() {
         this._chatChangedUnsub?.();
         this._chatChangedUnsub = null;
+        this._resizeObserver?.disconnect();
+        this._resizeObserver = null;
+        this._charactersIconObserver?.disconnect();
+        this._charactersIconObserver = null;
+        this._charactersIconEl = null;
+        this._tabBar = null;
         this._clickHandlers.forEach((handler, button) => {
             button.removeEventListener('click', handler);
         });

@@ -1,10 +1,16 @@
 {
-    "display_name": "ChatPlus 2",
-    "loading_order": 50,
-    "js": "index.js",
-    "css": "app/chatplus.css",
-    "author": "SoFizzticated",
-    "version": "2.0.0",
-    "description": "Enhanced chat management with pinned chats, folders, and recent chats view.",
-    "homePage": "https://github.com/SoFizzticated/SillyTavern-ChatPlus2"
+  "display_name": "ChatPlus 2 (Beta)",
+  "loading_order": 50,
+  "js": "index.js",
+  "css": "app/chatplus.css",
+  "author": "SoFizzticated",
+  "version": "2.0.0",
+  "description": "Recent, pinned and foldered chats for SillyTavern. Avatar-based identity, Lost & Found resolver, snapshot store, multi-select, and v1 migration. Public Beta.",
+  "homePage": "https://github.com/SoFizzticated/SillyTavern-ChatPlus2",
+  "auto_update": true,
+  "minimum_client_version": "1.17.0",
+  "hooks": {
+    "install": "onInstall",
+    "update": "onUpdate"
+  }
 }

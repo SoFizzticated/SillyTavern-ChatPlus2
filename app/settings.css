@@ -1,0 +1,318 @@
+/**
+ * ChatPlus 2 — Settings Panel Styles
+ *
+ * Scoped under #chatplus2-settings-drawer. Three grouped sections
+ * (General / Data / Maintenance) separated by a subtle divider rule,
+ * with a consistent 8/16px spacing scale and accessible focus rings.
+ */
+
+/* ========================================
+   Scoped design tokens + drawer header
+   ======================================== */
+
+#chatplus2-settings-drawer {
+    --cp-spacing-sm: 8px;
+    --cp-spacing-md: 16px;
+    --cp-btn-min-height: 36px;
+    --cp-divider: var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    --cp-muted: var(--SmartThemeQuoteColor, rgba(255, 255, 255, 0.55));
+}
+
+.chatplus-settings-drawer-title {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cp-spacing-sm);
+}
+
+.chatplus-settings-drawer-logo {
+    font-size: 0.95em;
+    opacity: 0.8;
+}
+
+/* ========================================
+   Groups (General / Data / Maintenance)
+   ======================================== */
+
+.chatplus-settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cp-spacing-md);
+    padding: var(--cp-spacing-md) 0;
+}
+
+.chatplus-settings-group + .chatplus-settings-group {
+    border-top: 1px solid var(--cp-divider);
+}
+
+.chatplus-settings-group:first-child {
+    padding-top: var(--cp-spacing-sm);
+}
+
+.chatplus-settings-group:last-child {
+    padding-bottom: var(--cp-spacing-sm);
+}
+
+.chatplus-settings-group-heading {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.55;
+    color: var(--SmartThemeBodyColor, inherit);
+}
+
+/* ========================================
+   Sections (one control block per)
+   ======================================== */
+
+.chatplus-settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--cp-spacing-sm);
+    margin: 0; /* parent group handles rhythm via gap */
+}
+
+.chatplus-settings-group-label {
+    display: block;
+    font-size: 0.9em;
+    font-weight: 600;
+    color: var(--SmartThemeBodyColor, inherit);
+    margin: 0;
+}
+
+.chatplus-settings-hint {
+    display: block;
+    font-size: 0.82em;
+    color: var(--cp-muted);
+    margin: 0;
+    line-height: 1.35;
+}
+
+.chatplus-settings-hint code {
+    font-size: 0.92em;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* ========================================
+   Enable toggle — baseline alignment
+   ======================================== */
+
+.chatplus-settings-enable-label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--cp-spacing-sm);
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.chatplus-settings-enable-label input[type="checkbox"] {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.chatplus-settings-enable-label span {
+    line-height: 1.25;
+}
+
+/* Inline "Reload now" button (step 43b) — only visible when the Enable
+   checkbox has been toggled since page load. Sits under the label so
+   its appearance doesn't jitter the checkbox row. */
+.chatplus-settings-inline-reload {
+    align-self: flex-start;
+    min-height: var(--cp-btn-min-height);
+}
+
+.chatplus-settings-inline-reload[hidden] {
+    display: none !important;
+}
+
+/* ========================================
+   Default Tab row (3 toggle buttons)
+   ======================================== */
+
+.chatplus-settings-tab-row {
+    display: flex;
+    gap: var(--cp-spacing-sm);
+    margin: 0;
+}
+
+.chatplus-settings-tab-row .menu_button {
+    flex: 1;
+    text-align: center;
+    min-height: var(--cp-btn-min-height);
+}
+
+.chatplus-settings-tab-row .menu_button.chatplus-active {
+    background: var(--SmartThemeFavColor, rgba(100, 160, 255, 0.25));
+    border-color: var(--SmartThemeFavColor, rgba(100, 160, 255, 0.6));
+    color: var(--SmartThemeBodyColor, #fff);
+    box-shadow: inset 0 0 0 1px var(--SmartThemeFavColor, rgba(100, 160, 255, 0.3)),
+                0 0 6px 0 rgba(100, 160, 255, 0.15);
+    font-weight: 600;
+}
+
+/* ========================================
+   Button rows — equal width, equal height
+   ======================================== */
+
+.chatplus-settings-btn-row {
+    display: flex;
+    gap: var(--cp-spacing-sm);
+    flex-wrap: wrap;
+    margin: 0;
+}
+
+.chatplus-settings-btn-row .menu_button {
+    flex: 1 1 0;
+    min-height: var(--cp-btn-min-height);
+    min-width: 0;
+}
+
+/* Standalone (single-button) sections — keep the button sized to its
+   content rather than stretched full-width. */
+.chatplus-settings-section > .menu_button {
+    align-self: flex-start;
+    min-height: var(--cp-btn-min-height);
+}
+
+/* ========================================
+   Recent list layout preview (flat vs grouped)
+   Reuses `.chatplus-settings-tab-row` for active-button styling.
+   ======================================== */
+.chatplus-layout-preview-row {
+    flex-wrap: wrap;
+}
+
+.chatplus-layout-preview {
+    flex: 1 1 140px;
+    min-height: auto;
+    padding: var(--cp-spacing-sm, 8px) !important;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    text-align: left;
+}
+
+.chatplus-layout-preview-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.chatplus-layout-preview-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.18);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--SmartThemeBodyColor, #bbb);
+    opacity: 0.9;
+    pointer-events: none;
+}
+
+.chatplus-layout-preview-row-mock,
+.chatplus-layout-preview-header-mock {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chatplus-layout-preview-header-mock {
+    font-weight: 600;
+    color: var(--SmartThemeQuoteColor, #ddd);
+    opacity: 0.95;
+    border-bottom: 1px dashed var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.18));
+    padding-bottom: 2px;
+    margin-top: 2px;
+}
+
+.chatplus-layout-preview-header-mock:first-child {
+    margin-top: 0;
+}
+
+.chatplus-layout-preview-row-mock--indent {
+    padding-left: 14px;
+}
+
+.chatplus-layout-preview-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--SmartThemeQuoteColor, rgba(120, 170, 255, 0.65));
+    flex-shrink: 0;
+}
+
+/* ========================================
+   Snapshot info pill
+   ======================================== */
+
+.chatplus-settings-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--cp-divider);
+    font-size: 0.8em;
+    color: var(--cp-muted);
+    align-self: flex-start;
+    line-height: 1.4;
+}
+
+.chatplus-settings-pill-icon {
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+.chatplus-settings-pill-text {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ========================================
+   V1 Migration subsection — warning tint
+   ======================================== */
+
+.chatplus-settings-migration {
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 200, 50, 0.3));
+    border-left: 3px solid rgba(255, 200, 50, 0.55);
+    border-radius: 6px;
+    padding: var(--cp-spacing-sm) var(--cp-spacing-md);
+    background: rgba(255, 200, 50, 0.05);
+}
+
+/* ========================================
+   Accessibility — focus rings + disabled
+   ======================================== */
+
+#chatplus2-settings-drawer :is(button, input, select, label):focus-visible {
+    outline: 2px solid var(--SmartThemeFavColor, rgba(100, 160, 255, 0.9));
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+#chatplus2-settings-drawer button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ========================================
+   Responsive — stack button rows on narrow widths
+   ======================================== */
+
+@media (max-width: 400px) {
+    .chatplus-settings-btn-row .menu_button {
+        flex-basis: 100%;
+    }
+}

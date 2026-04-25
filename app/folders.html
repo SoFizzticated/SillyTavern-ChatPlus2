@@ -1,0 +1,75 @@
+<!-- ChatPlus 2 Folders Templates (cloned by folders-view.js and ui-renderer.js) -->
+
+<!-- Folder item skeleton: header + body (options bar + content wrapper) -->
+<template id="chatplus-folder-item-template">
+  <div class="chatplus-folder-item">
+    <div class="chatplus-folder-header">
+      <span class="chatplus-folder-toggle">
+        <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+      </span>
+      <span class="chatplus-folder-icon">
+        <i class="fa-solid fa-folder" aria-hidden="true"></i>
+      </span>
+      <span class="chatplus-folder-name"></span>
+      <div class="chatplus-folder-actions"></div>
+    </div>
+    <div class="chatplus-folder-body" hidden>
+      <!-- Options bar (hidden by default; gear toggles visibility) -->
+      <div class="chatplus-folder-options-bar chatplus-hidden">
+        <button class="chatplus-options-btn" type="button" data-option="add"><i class="fa-solid fa-plus" aria-hidden="true"></i> Add Chats</button>
+        <button class="chatplus-options-btn" type="button" data-option="remove"><i class="fa-solid fa-square-check" aria-hidden="true"></i> Remove Chats</button>
+        <button class="chatplus-options-btn chatplus-options-btn--danger" type="button" data-option="delete-folder"><i class="fa-solid fa-trash" aria-hidden="true"></i> Delete Folder</button>
+      </div>
+      <!-- Content wrapper: two sibling panels, only one visible at a time -->
+      <div class="chatplus-folder-content-wrapper">
+        <div class="chatplus-folder-contents"></div>
+        <div class="chatplus-folder-add-panel chatplus-hidden"></div>
+      </div>
+      <!-- Remove-mode sticky footer (hidden until "Remove Chats" is active) -->
+      <div class="chatplus-remove-footer chatplus-hidden">
+        <span class="chatplus-remove-count">0 selected</span>
+        <button class="menu_button chatplus-remove-selected-btn" type="button" disabled><i class="fa-solid fa-xmark" aria-hidden="true"></i> Remove Selected</button>
+      </div>
+      <!-- Subfolders: always visible regardless of Add/Remove mode -->
+      <div class="chatplus-folder-subfolders"></div>
+    </div>
+  </div>
+</template>
+
+<!-- Add Chats sub-panel skeleton (cloned into .chatplus-folder-add-panel on first use) -->
+<template id="chatplus-folder-add-template">
+  <div class="chatplus-cm-search-bar">
+    <input type="text" class="chatplus-search-input text_pole" placeholder="Search chats to add…" />
+    <button class="chatplus-search-clear" type="button" title="Clear search" style="display: none">✕</button>
+  </div>
+  <div class="chatplus-cm-add-list"></div>
+  <div class="chatplus-cm-add-footer">
+    <span class="chatplus-cm-selection-info">0 selected</span>
+    <button class="menu_button chatplus-cm-add-selected-btn" type="button" disabled><i class="fa-solid fa-plus" aria-hidden="true"></i> Add Selected</button>
+  </div>
+  <button class="menu_button chatplus-cm-load-more" type="button" style="display: none"></button>
+</template>
+
+<!-- Empty-folder rich message (gear icon + clickable "Add Chats" link) -->
+<template id="chatplus-empty-folder-template">
+  <div class="chatplus-empty-message">
+    No chats in this folder yet. Click the
+    <i class="fa-solid fa-gear" aria-hidden="true"></i>
+    icon, then
+    <a class="chatplus-cm-link" href="#">Add Chats</a>
+    to assign some.
+  </div>
+</template>
+
+<!-- Folder picker popover container -->
+<template id="chatplus-folder-picker-template">
+  <div class="chatplus-folder-picker" data-chatplus-folder-picker></div>
+</template>
+
+<!-- Folder picker single row -->
+<template id="chatplus-folder-picker-row-template">
+  <div class="chatplus-folder-picker-item">
+    <i class="fa-solid fa-folder" aria-hidden="true"></i>
+    <span class="chatplus-picker-row-name"></span>
+  </div>
+</template>

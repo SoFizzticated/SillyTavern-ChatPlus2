@@ -165,13 +165,20 @@ export class ChatRepository {
      */
     async _fetchGroupChats(group) {
         try {
-            // Use group.avatar_url (REST API) or group.avatar (context) — whichever is set
-            const groupAvatar = group.avatar_url || group.avatar || group.id;
+            // Key avatar = group.id (IMMUTABLE: timestamp string, fixed at creation).
+            // Previously this fell back through avatar_url / avatar / id, but avatar_url
+            // is mutable — users can change their group avatar, and every stored pin /
+            // folder assignment key becomes orphaned. group.id never changes.
+            // The mutable `avatar_url` / `avatar` are preserved separately as
+            // `display_avatar` for rendering only (UIRenderer already uses chat.entity).
+            const groupAvatar = String(group.id);
+            const displayAvatar = group.avatar_url || group.avatar || null;
 
             const chatEntries = await CoreAPI.getGroupChatsWithStats(group.id);
 
             return chatEntries.map(entry => ({
                 avatar: groupAvatar,
+                display_avatar: displayAvatar,
                 file_name: entry.file_name,
                 character_name: group.name || 'Unknown Group',
                 group_id: group.id,
@@ -375,6 +382,176 @@ export class ChatRepository {
         this.chatsByAvatar.delete(avatar);
 
         console.debug(`[ChatPlus2] Invalidated cache for avatar: ${avatar}`);
+    }
+
+    /**
+     * Surgically refetch a single avatar's chats — clears that avatar's
+     * cache entries, then re-runs the appropriate per-entity fetch and
+     * repopulates `chatCache` + `chatsByAvatar` for that avatar only.
+     *
+     * Use this after deleting a chat (or any single-entity mutation) so
+     * the rest of the avatar's chats remain visible. Calling
+     * `invalidateAvatar()` alone leaves the avatar empty until the next
+     * `fetchAllChats()`, which causes the deleted chat's siblings to
+     * disappear from the Recent view (44c).
+     *
+     * @param {string} avatar - Avatar filename for characters, or
+     *                          `String(group.id)` for groups.
+     * @param {boolean} [isGroup=false] - True if `avatar` refers to a group.
+     * @returns {Promise<void>}
+     */
+    async refetchAvatar(avatar, isGroup = false) {
+        if (!avatar) return;
+
+        // Drop existing cache for this avatar
+        this.invalidateAvatar(avatar);
+
+        try {
+            let entity = null;
+            let chats = [];
+
+            if (isGroup) {
+                const groups = await CoreAPI.getAllGroups();
+                entity = groups.find(g => String(g.id) === String(avatar)) || null;
+                if (!entity) {
+                    // Group is gone (deleted); nothing to repopulate.
+                    return;
+                }
+                chats = await this._fetchGroupChats(entity);
+            } else {
+                const characters = await CoreAPI.getAllCharacters();
+                entity = characters.find(c => c.avatar === avatar) || null;
+                if (!entity) {
+                    return;
+                }
+                chats = await this._fetchCharacterChats(avatar, entity);
+            }
+
+            for (const chat of chats) {
+                try {
+                    const chatKey = ChatIdentifier.getChatKey(chat);
+                    this.chatCache.set(chatKey, chat);
+                    if (!this.chatsByAvatar.has(chat.avatar)) {
+                        this.chatsByAvatar.set(chat.avatar, new Set());
+                    }
+                    this.chatsByAvatar.get(chat.avatar).add(chatKey);
+                } catch (error) {
+                    console.warn('[ChatPlus2] refetchAvatar: skipping invalid chat:', error.message);
+                }
+            }
+
+            console.debug(`[ChatPlus2] Refetched ${chats.length} chats for avatar: ${avatar}`);
+        } catch (error) {
+            console.error(`[ChatPlus2] refetchAvatar error for ${avatar}:`, error);
+        }
+    }
+
+    /**
+     * One-shot remap of stale group chat keys.
+     *
+     * Before Phase 2 of step 27, group chat keys used `group.avatar_url` (or
+     * `group.avatar`) as their avatar component. Those values are mutable —
+     * when a user changes a group's avatar, every stored key became orphaned.
+     * The canonical form now uses `group.id` (immutable timestamp string).
+     *
+     * This method scans the supplied StateManager's pinnedChats and chatFolders
+     * for keys whose avatar portion matches a legacy form of a known group and
+     * rewrites them in-place. Idempotent — safe to run on every init.
+     *
+     * @param {import('./state-manager.js').default} stateManager
+     * @returns {{ pins: number, folderAssignments: number }} Remap counts
+     */
+    remapStaleGroupKeys(stateManager) {
+        if (!stateManager || typeof stateManager.get !== 'function') {
+            return { pins: 0, folderAssignments: 0 };
+        }
+
+        const groups = CoreAPI.getAllGroups() || [];
+        if (groups.length === 0) {
+            return { pins: 0, folderAssignments: 0 };
+        }
+
+        // Build lookup: legacy-avatar-string -> canonical group.id
+        const legacyToId = new Map();
+        for (const group of groups) {
+            const id = String(group.id);
+            for (const legacy of [group.avatar_url, group.avatar]) {
+                if (legacy && String(legacy) !== id) {
+                    legacyToId.set(String(legacy), id);
+                }
+            }
+        }
+        if (legacyToId.size === 0) {
+            return { pins: 0, folderAssignments: 0 };
+        }
+
+        const remapKey = (key) => {
+            if (typeof key !== 'string' || !key) return null;
+            const colon = key.indexOf(':');
+            if (colon === -1) return null;
+            const avatar = key.substring(0, colon);
+            const canonical = legacyToId.get(avatar);
+            if (!canonical || canonical === avatar) return null;
+            return `${canonical}:${key.substring(colon + 1)}`;
+        };
+
+        let pinsRemapped = 0;
+        let assignmentsRemapped = 0;
+
+        // --- Remap pinnedChats ---------------------------------------------
+        const pins = stateManager.get('pinnedChats');
+        if (Array.isArray(pins) && pins.length > 0) {
+            const newPins = [];
+            const seen = new Set();
+            for (const key of pins) {
+                const remapped = remapKey(key) ?? key;
+                if (remapped !== key) pinsRemapped++;
+                if (!seen.has(remapped)) {
+                    seen.add(remapped);
+                    newPins.push(remapped);
+                }
+            }
+            if (pinsRemapped > 0) {
+                stateManager.set('pinnedChats', newPins);
+            }
+        }
+
+        // --- Remap chatFolders ---------------------------------------------
+        const chatFolders = stateManager.get('chatFolders');
+        if (chatFolders && typeof chatFolders === 'object') {
+            const newChatFolders = {};
+            let changed = false;
+            for (const [key, folderIds] of Object.entries(chatFolders)) {
+                const remapped = remapKey(key);
+                const targetKey = remapped ?? key;
+                if (remapped) {
+                    assignmentsRemapped++;
+                    changed = true;
+                }
+                const existing = newChatFolders[targetKey];
+                if (existing) {
+                    // Merge (union) folder id arrays if a key collision occurs
+                    const merged = Array.from(new Set([...existing, ...(folderIds || [])]));
+                    newChatFolders[targetKey] = merged;
+                } else {
+                    newChatFolders[targetKey] = Array.isArray(folderIds)
+                        ? [...folderIds]
+                        : folderIds;
+                }
+            }
+            if (changed) {
+                stateManager.set('chatFolders', newChatFolders);
+            }
+        }
+
+        if (pinsRemapped > 0 || assignmentsRemapped > 0) {
+            console.info(
+                `[ChatPlus2] Remapped ${pinsRemapped} pin(s) and ${assignmentsRemapped}`,
+                'folder assignment(s) from legacy group-avatar keys to group.id keys'
+            );
+        }
+
+        return { pins: pinsRemapped, folderAssignments: assignmentsRemapped };
     }
 
     /**

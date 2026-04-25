@@ -115,9 +115,15 @@ export async function getEntityByAvatar(avatar) {
         }
     }
 
-    // Check groups (check both avatar_url and avatar for compatibility)
+    // Check groups. The canonical key avatar for groups is `group.id` (stable
+    // across avatar changes). Legacy keys may still use `avatar_url` or `avatar`,
+    // so check all three forms for backward compatibility with pre-remap data.
     if (groups && Array.isArray(groups)) {
-        const group = groups.find(g => g.avatar_url === avatar || g.avatar === avatar);
+        const group = groups.find(g =>
+            String(g.id) === avatar ||
+            g.avatar_url === avatar ||
+            g.avatar === avatar
+        );
         if (group) {
             return { ...group, isGroup: true };
         }
