@@ -368,6 +368,7 @@ export class FoldersView {
         }
 
         const currentChat = CoreAPI.getCurrentChat();
+        const tabsEnabled = CoreAPI.getStateManager()?.get('tabsEnabled') !== false;
         const orphanKeys = [];
         // Resolve chat objects up front so we can sort the live ones
         // alphabetically (character_name → file_name) before render.
@@ -399,6 +400,7 @@ export class FoldersView {
                 isPinned,
                 isActive,
                 onOpen: (c) => this._openChat(c),
+                onOpenInTab: tabsEnabled ? (c) => this._openChatInTab(c) : undefined,
             });
             if (item) contents.appendChild(item);
         }
@@ -955,6 +957,22 @@ export class FoldersView {
             CoreAPI.showToast('Failed to open chat', 'error');
             return false;
         }
+    }
+
+    /**
+     * Open a folder chat as a secondary multi-profile tab (the full-height "+"
+     * on a folder row). Delegates to ChatTabsController; groups are rejected
+     * there. Mirrors RecentChatsView._openChatInTab.
+     * @param {Object} chat
+     * @private
+     */
+    _openChatInTab(chat) {
+        const controller = CoreAPI.getModule('ChatTabsController');
+        if (!controller) {
+            CoreAPI.showToast('Chat tabs are not available', 'error');
+            return;
+        }
+        controller.openSecondaryTab(chat);
     }
 
     _isActiveChat(chat, currentChat) {
