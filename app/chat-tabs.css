@@ -1,19 +1,34 @@
 /* ChatPlus 2 — Multi-profile chat tabs (strip + per-tab panels) */
 
-/* ── Tab strip (docked above #chat inside #sheld) ───────────────────────── */
+/* ── Tab strip (zero-height in-flow rail; tabs hang over #chat) ──────────
+   The strip stays in #sheld's flex flow so it always sits directly below
+   whatever other bars are stacked above the chat (e.g. TopInfoBar's
+   #extensionTopBar and its foldable #extensionConnectionProfiles) and moves
+   when those fold/unfold. `height: 0` + visible overflow means it takes no
+   layout space: the tabs visually hang over the top of #chat instead of
+   pushing it down. NOT position:absolute — that would anchor the strip to
+   #sheld and overlap any in-flow element above the chat. */
 .cp-tab-strip {
+    position: relative;
+    z-index: 50;              /* The main chat has a z-index of 30, any value below this hides our tabs when the main chat is chosen and displayed */
+    flex: 0 0 auto;
+    height: 0;
+    overflow: visible;
+    pointer-events: none;    /* the invisible band must not block the chat */
+}
+
+/* Inner rail: carries the flex layout + horizontal scrolling, since a
+   0-height box cannot be its own scroller without clipping the tabs. */
+.cp-tab-strip-scroll {
     display: flex;
     align-items: flex-start;     /* tabs hang from the top; only the active one grows */
-    gap: 4px;
-    flex: 0 0 auto;
-    padding: 3px 4px;
+    gap: 0px;
+    padding: 0 4px;
     box-sizing: border-box;
-    background-color: var(--black30a);
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: thin;
-    position: relative;
-    z-index: 2;
+    pointer-events: none;        /* gaps between tabs stay click-through */
 }
 
 /* Item 1: nothing to switch to → strip vanishes entirely. */
@@ -24,15 +39,18 @@
     flex-direction: column;      /* head row + optional action row underneath */
     flex: 0 0 170px;
     width: 170px;
+    pointer-events: auto;        /* re-enable input inside the click-through rail */
     border-radius: 0 0 8px 8px;  /* item 3: rounded at the BOTTOM — hangs from the top */
     border: 1px solid var(--SmartThemeBorderColor);
-    border-top: none;            /* flush against the strip's top edge */
-    background-color: var(--black30a);
+    border-top: none;            /* flush against the chat's top edge */
+    /* The rail behind is transparent, so each tab brings its own frosted backdrop to stay legible over the chat text it hangs above. */
+    background-color: var(--SmartThemeBlurTintColor);
+    backdrop-filter: blur(var(--SmartThemeBlurStrength));
+    -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength));
     color: var(--SmartThemeBodyColor);
     cursor: pointer;
     white-space: nowrap;
     font-size: 0.85em;
-    opacity: 0.72;
     overflow: hidden;
     transition: opacity 0.15s ease, background-color 0.15s ease;
 }

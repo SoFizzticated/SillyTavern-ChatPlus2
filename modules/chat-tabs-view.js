@@ -10,10 +10,16 @@
  * DOM (never reparents ST DOM):
  *   #sheld
  *     #sheldheader
- *     #chatplus-tab-strip        ← inserted before #chat
+ *     (other extensions' bars, e.g. TopInfoBar)
+ *     #chatplus-tab-strip        ← kept as the immediate previous sibling of #chat
+ *       .cp-tab-strip-scroll     ← horizontal rail holding the chips
  *     #chat                      (ST)  — hidden when a secondary tab is selected
  *     #chatplus-tab-panels       ← inserted after #chat; shown when secondary selected
  *     #form_sheld                (ST)  — hidden when a secondary tab is selected
+ *
+ * The strip is a zero-height in-flow flex child (see chat-tabs.css): tabs hang
+ * over the top of #chat without consuming layout space, while still moving
+ * with any foldable bars other extensions stack above the chat.
  *
  * Per-tab panels are kept in the DOM once built, so draft text + scroll survive
  * tab switches.
@@ -35,8 +41,12 @@ export default class ChatTabsView {
         this._sheld = null;
         /** @type {HTMLElement|null} */
         this._strip = null;
+        /** @type {HTMLElement|null} Horizontal rail inside the strip that holds the chips */
+        this._scroll = null;
         /** @type {HTMLElement|null} */
         this._panels = null;
+        /** @type {MutationObserver|null} Keeps the strip directly before #chat */
+        this._orderObserver = null;
 
         /** @type {Map<string, {panel: HTMLElement, transcript: HTMLElement, input: HTMLTextAreaElement, sending: boolean, abort: AbortController|null}>} */
         this._panelByKey = new Map();
@@ -73,6 +83,9 @@ export default class ChatTabsView {
             this._strip = document.createElement('div');
             this._strip.id = 'chatplus-tab-strip';
             this._strip.className = 'cp-tab-strip';
+            this._scroll = document.createElement('div');
+            this._scroll.className = 'cp-tab-strip-scroll';
+            this._strip.appendChild(this._scroll);
             sheld.insertBefore(this._strip, chat);
 
             this._panels = document.createElement('div');
@@ -81,8 +94,21 @@ export default class ChatTabsView {
             chat.insertAdjacentElement('afterend', this._panels);
         } else {
             this._strip = document.getElementById('chatplus-tab-strip');
+            this._scroll = this._strip.querySelector('.cp-tab-strip-scroll');
+            if (!this._scroll) {
+                // Strip left over from a pre-rail version: rebuild its inside.
+                this._strip.textContent = '';
+                this._scroll = document.createElement('div');
+                this._scroll.className = 'cp-tab-strip-scroll';
+                this._strip.appendChild(this._scroll);
+            }
             this._panels = document.getElementById('chatplus-tab-panels');
         }
+
+        // The hanging tabs align with #chat's top edge only while the strip is the chat's immediate previous sibling. Other extensions (TopInfoBar et al.) also insert bars into #sheld before #chat — if one lands between us and the chat after we mounted, slide back into place.
+        this._ensureStripPosition();
+        this._orderObserver = new MutationObserver(() => this._ensureStripPosition());
+        this._orderObserver.observe(sheld, { childList: true });
 
         this._unsubs.push(CoreAPI.on('chat-tabs-changed', () => { this._prunePanels(); this._renderStrip(); this._applySelection(); }));
         this._unsubs.push(CoreAPI.on('chat-tab-selected', () => { this._renderStrip(); this._applySelection(); }));
@@ -121,6 +147,8 @@ export default class ChatTabsView {
         this._closePopover();
         this._styleAliasCleanup?.();
         this._styleAliasCleanup = null;
+        this._orderObserver?.disconnect();
+        this._orderObserver = null;
         this._unsubs.forEach(fn => { try { fn(); } catch { /* best-effort */ } });
         this._unsubs = [];
         for (const entry of this._panelByKey.values()) entry.abort?.abort();
@@ -129,8 +157,23 @@ export default class ChatTabsView {
         this._strip?.remove();
         this._panels?.remove();
         this._strip = null;
+        this._scroll = null;
         this._panels = null;
         this._sheld = null;
+    }
+
+    /**
+     * Keep the strip as #chat's immediate previous sibling so the hanging tabs
+     * line up with the chat's top edge regardless of what other extensions
+     * insert into #sheld. No-ops when already in place (observer-safe).
+     * @private
+     */
+    _ensureStripPosition() {
+        const chat = document.getElementById('chat');
+        if (!chat || !this._strip || !this._sheld || !this._strip.isConnected) return;
+        if (this._strip.nextElementSibling !== chat) {
+            this._sheld.insertBefore(this._strip, chat);
+        }
     }
 
     // ─────────────────────────────────────────────────────────
@@ -139,9 +182,9 @@ export default class ChatTabsView {
 
     /** @private */
     _renderStrip() {
-        if (!this._strip) return;
+        if (!this._strip || !this._scroll) return;
         const selectedKey = this.controller.getSelectedKey();
-        this._strip.textContent = '';
+        this._scroll.textContent = '';
 
         // Hide the whole strip when there are no secondary tabs — the Main chip
         // alone is "only one open" and there's nothing to switch to, so native
@@ -150,7 +193,7 @@ export default class ChatTabsView {
 
         // ── Main chat chip ──
         const main = this.controller.getMainChatInfo();
-        this._strip.appendChild(this._buildChip({
+        this._scroll.appendChild(this._buildChip({
             key: MAIN_KEY,
             label: main.label,
             subtitle: main.fileName,
@@ -160,7 +203,7 @@ export default class ChatTabsView {
 
         // ── Secondary tabs ──
         for (const tab of this.controller.getTabs()) {
-            this._strip.appendChild(this._buildChip({
+            this._scroll.appendChild(this._buildChip({
                 key: tab.chatKey,
                 label: tab.characterName || tab.avatar || tab.fileName,
                 subtitle: tab.fileName,
