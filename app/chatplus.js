@@ -16,6 +16,8 @@ import FoldersView from '../modules/folders-view.js';
 import TabController from '../modules/tab-controller.js';
 import ChatTabsController from '../modules/chat-tabs-controller.js';
 import ChatTabsView from '../modules/chat-tabs-view.js';
+import WorkshopsController from '../modules/workshops-controller.js';
+import WorkshopsView from '../modules/workshops-view.js';
 import SearchFilter from '../modules/search-filter.js';
 import UIRenderer from '../modules/ui-renderer.js';
 import LostAndFound from '../modules/lost-and-found.js';
@@ -38,6 +40,8 @@ class ChatPlusCoordinator {
         this.tabController = null;
         this.chatTabsController = null;
         this.chatTabsView = null;
+        this.workshopsController = null;
+        this.workshopsView = null;
         this.searchFilter = null;
         this.uiRenderer = null;
         this.eventHandlers = null;
@@ -210,6 +214,16 @@ class ChatPlusCoordinator {
 
             console.debug('[ChatPlus2] FoldersView initialized');
 
+            // Workshops (named tab-set snapshots). Independent of the chat-tabs
+            // master toggle — the view shows a "tabs are disabled" message when
+            // off — so it's created here rather than inside _createChatTabs.
+            this.workshopsController = new WorkshopsController(this.stateManager);
+            CoreAPI.registerModule('WorkshopsController', this.workshopsController);
+            this.workshopsView = new WorkshopsView(this.workshopsController);
+            CoreAPI.registerModule('WorkshopsView', this.workshopsView);
+
+            console.debug('[ChatPlus2] Workshops initialized');
+
             // Multi-profile chat tabs are created in Phase 4, gated on the
             // `tabsEnabled` master toggle (see _createChatTabs / setChatTabsEnabled).
 
@@ -303,6 +317,8 @@ class ChatPlusCoordinator {
         try {
             this.recentChatsView?.refresh?.().catch?.(() => { });
         } catch { /* no-op */ }
+        // Let the Workshops view re-render its enabled/disabled state.
+        CoreAPI.emit('workshops-changed');
     }
 
     /**
@@ -410,6 +426,9 @@ class ChatPlusCoordinator {
         this.chatTabsView = null;
         this.chatTabsController?.destroy();
         this.chatTabsController = null;
+        this.workshopsView?.destroy();
+        this.workshopsView = null;
+        this.workshopsController = null;
         this.searchFilter?.destroy();
         this.searchFilter = null;
         this.uiRenderer = null;

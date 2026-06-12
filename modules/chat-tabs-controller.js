@@ -86,7 +86,7 @@ export default class ChatTabsController {
      */
     getMainChatInfo() {
         const context = CoreAPI.getContext();
-        if (!context) return { label: 'Main chat', isGroup: false, chatKey: null, fileName: '', avatar: null };
+        if (!context) return { label: 'Main chat', isGroup: false, chatKey: null, fileName: '', avatar: null, groupId: null };
 
         const isGroup = context.groupId !== undefined && context.groupId !== null;
         if (isGroup) {
@@ -102,12 +102,14 @@ export default class ChatTabsController {
                 chatKey: groupFile ? `${String(context.groupId)}:${groupFile}` : null,
                 fileName: groupFile,
                 avatar: null,
+                // Exposed so Workshops can re-open a group as the main chat.
+                groupId: String(context.groupId),
             };
         }
 
         const char = (context.characters || [])[context.characterId];
         const fileName = context.getCurrentChatId?.();
-        if (!char || !fileName) return { label: 'Main chat', isGroup: false, chatKey: null, fileName: '', avatar: null };
+        if (!char || !fileName) return { label: 'Main chat', isGroup: false, chatKey: null, fileName: '', avatar: null, groupId: null };
         const clean = String(fileName).replace(/\.jsonl$/, '');
         return {
             label: char.name || 'Main chat',
@@ -115,6 +117,7 @@ export default class ChatTabsController {
             chatKey: `${char.avatar}:${clean}`,
             fileName: clean,
             avatar: char.avatar,
+            groupId: null,
         };
     }
 
@@ -223,7 +226,9 @@ export default class ChatTabsController {
     }
 
     /**
-     * Close a secondary tab. If it was selected, fall back to Main.
+     * Close a secondary tab. If it was selected, focus the PRECEDING tab (the
+     * one to its left) instead of jumping back to Main — the Main chip precedes
+     * the first secondary tab, so closing the first lands on Main.
      * @param {string} chatKey
      */
     closeTab(chatKey) {
@@ -231,7 +236,55 @@ export default class ChatTabsController {
         const idx = (state.open || []).findIndex(t => t.chatKey === chatKey);
         if (idx === -1) return;
         state.open.splice(idx, 1);
-        if (state.selectedKey === chatKey) state.selectedKey = MAIN_KEY;
+        if (state.selectedKey === chatKey) {
+            // After the splice, the preceding secondary tab still sits at idx-1.
+            state.selectedKey = idx > 0 ? state.open[idx - 1].chatKey : MAIN_KEY;
+        }
+        this._persist();
+        CoreAPI.emit('chat-tabs-changed', { tabs: this.getTabs(), selectedKey: this.getSelectedKey() });
+    }
+
+    /**
+     * Replace the entire secondary-tab set in one shot (used by Workshops to
+     * load/clear a saved session). Keeps ALL `chatTabs` writes inside the
+     * controller that owns them.
+     *
+     * @param {Array<Object>} tabs - New secondary-tab objects (cloned in by caller)
+     * @param {string} [selectedKey] - Key to focus; falls back to the first tab or MAIN_KEY
+     */
+    replaceOpenTabs(tabs, selectedKey) {
+        const open = Array.isArray(tabs) ? tabs : [];
+        const state = this._state();
+        state.open = open;
+
+        // Resolve a valid selection: caller's pick if it's still present, else
+        // the first tab, else Main.
+        const valid = selectedKey === MAIN_KEY || open.some(t => t.chatKey === selectedKey);
+        state.selectedKey = valid ? selectedKey : (open[0]?.chatKey || MAIN_KEY);
+
+        this._persist();
+        CoreAPI.emit('chat-tabs-changed', { tabs: this.getTabs(), selectedKey: this.getSelectedKey() });
+        CoreAPI.emit('chat-tab-selected', { selectedKey: this.getSelectedKey() });
+    }
+
+    /**
+     * Reorder the secondary tabs to match a given key order (e.g. after a
+     * drag-and-drop). Keys not present are ignored; any open tab missing from
+     * `orderedKeys` keeps its relative order at the end.
+     * @param {Array<string>} orderedKeys
+     */
+    reorderTabs(orderedKeys) {
+        const state = this._state();
+        const byKey = new Map((state.open || []).map(t => [t.chatKey, t]));
+        const next = [];
+        for (const k of (orderedKeys || [])) {
+            const t = byKey.get(k);
+            if (t) { next.push(t); byKey.delete(k); }
+        }
+        for (const t of byKey.values()) next.push(t); // leftovers keep order
+        // No-op if nothing actually moved.
+        if (next.length === state.open.length && next.every((t, i) => t === state.open[i])) return;
+        state.open = next;
         this._persist();
         CoreAPI.emit('chat-tabs-changed', { tabs: this.getTabs(), selectedKey: this.getSelectedKey() });
     }

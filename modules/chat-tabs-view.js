@@ -47,6 +47,8 @@ export default class ChatTabsView {
         this._onDocClick = null;
         /** @type {(() => void)|null} Cleanup for the #chat style alias */
         this._styleAliasCleanup = null;
+        /** @type {string|null} chatKey of the secondary tab being dragged */
+        this._dragKey = null;
     }
 
     /** @private Whether to render native `.mes` nodes + the #chat style alias. */
@@ -141,6 +143,11 @@ export default class ChatTabsView {
         const selectedKey = this.controller.getSelectedKey();
         this._strip.textContent = '';
 
+        // Hide the whole strip when there are no secondary tabs — the Main chip
+        // alone is "only one open" and there's nothing to switch to, so native
+        // #chat reclaims the space (item 1).
+        this._strip.classList.toggle('cp-tab-strip--solo', this.controller.getTabs().length === 0);
+
         // ── Main chat chip ──
         const main = this.controller.getMainChatInfo();
         this._strip.appendChild(this._buildChip({
@@ -191,10 +198,14 @@ export default class ChatTabsView {
             ? `Main chat: ${label}${subtitle ? ` · ${subtitle}` : ''}`
             : `${label} · ${tab.fileName}`;
 
+        // ── Head: the clickable selector (icon + stacked text) ──
+        const head = document.createElement('div');
+        head.className = 'cp-tab-head';
+
         if (isMain) {
             const icon = document.createElement('i');
-            icon.className = 'fa-solid fa-comment cp-tab-main-icon';
-            chip.appendChild(icon);
+            icon.className = 'fa-solid fa-user cp-tab-main-icon';
+            head.appendChild(icon);
         }
 
         const text = document.createElement('div');
@@ -211,29 +222,91 @@ export default class ChatTabsView {
             subEl.textContent = this._middleEllipsis(subtitle);
             text.appendChild(subEl);
         }
-        chip.appendChild(text);
+        head.appendChild(text);
+        chip.appendChild(head);
+        head.addEventListener('click', () => this.controller.selectTab(key));
 
-        chip.addEventListener('click', () => this.controller.selectTab(key));
+        // ── Action row: gear / promote / close, shown only under the active secondary tab (full tab width, both desktop and mobile — item 2). ──
+        if (!isMain && selected) {
+            const actions = document.createElement('div');
+            actions.className = 'cp-tab-actions';
 
-        if (!isMain) {
             // Gear → profile popover
-            chip.appendChild(this._iconButton('fa-gear', 'Connection profile', (e) => {
+            actions.appendChild(this._iconButton('fa-gear', 'Connection profile', (e) => {
                 e.stopPropagation();
                 this._openProfilePopover(tab, e.currentTarget);
             }));
             // Promote → heavy switch
-            chip.appendChild(this._iconButton('fa-person-arrow-up-from-line', 'Promote to main chat', (e) => {
+            actions.appendChild(this._iconButton('fa-person-arrow-up-from-line', 'Promote to main chat', (e) => {
                 e.stopPropagation();
                 this.controller.promote(tab.chatKey);
             }));
             // Close
-            chip.appendChild(this._iconButton('fa-xmark', 'Close tab', (e) => {
+            actions.appendChild(this._iconButton('fa-xmark', 'Close tab', (e) => {
                 e.stopPropagation();
                 this.controller.closeTab(tab.chatKey);
             }, 'cp-tab-close'));
+
+            chip.appendChild(actions);
         }
 
+        // ── Drag-to-reorder (secondary tabs only) ──
+        if (!isMain) this._wireDragReorder(chip, tab.chatKey);
+
         return chip;
+    }
+
+    /**
+     * Wire HTML5 drag-and-drop on a secondary chip so users can reorder tabs by
+     * holding and dragging. The Main chip is never draggable nor a drop target.
+     * @private
+     */
+    _wireDragReorder(chip, chatKey) {
+        chip.draggable = true;
+        chip.dataset.chatKey = chatKey;
+
+        chip.addEventListener('dragstart', (e) => {
+            this._dragKey = chatKey;
+            chip.classList.add('cp-tab--dragging');
+            if (e.dataTransfer) {
+                e.dataTransfer.effectAllowed = 'move';
+                try { e.dataTransfer.setData('text/plain', chatKey); } catch { /* some browsers */ }
+            }
+        });
+        chip.addEventListener('dragend', () => {
+            chip.classList.remove('cp-tab--dragging');
+            this._dragKey = null;
+            this._strip?.querySelectorAll('.cp-tab--dragover')
+                .forEach(el => el.classList.remove('cp-tab--dragover'));
+        });
+        chip.addEventListener('dragover', (e) => {
+            if (!this._dragKey || this._dragKey === chatKey) return;
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+            chip.classList.add('cp-tab--dragover');
+        });
+        chip.addEventListener('dragleave', () => chip.classList.remove('cp-tab--dragover'));
+        chip.addEventListener('drop', (e) => {
+            e.preventDefault();
+            chip.classList.remove('cp-tab--dragover');
+            const from = this._dragKey;
+            this._dragKey = null;
+            if (from && from !== chatKey) this._applyReorder(from, chatKey);
+        });
+    }
+
+    /**
+     * Move the dragged tab so it sits immediately before the drop-target tab.
+     * @private
+     */
+    _applyReorder(fromKey, toKey) {
+        const keys = this.controller.getTabs().map(t => t.chatKey);
+        const fromIdx = keys.indexOf(fromKey);
+        if (fromIdx !== -1) keys.splice(fromIdx, 1);
+        const toIdx = keys.indexOf(toKey);
+        if (toIdx === -1) return;
+        keys.splice(toIdx, 0, fromKey);
+        this.controller.reorderTabs(keys);
     }
 
     /** @private */

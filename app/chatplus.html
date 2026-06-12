@@ -14,6 +14,10 @@
       <span class="chatplus-tab-icon"><i class="fa-solid fa-folder-tree" aria-hidden="true"></i></span>
       <span class="chatplus-tab-label">Folders</span>
     </button>
+    <button class="chatplus-tab-button" data-chatplus-tab="workshops" title="Workshops">
+      <span class="chatplus-tab-icon"><i class="fa-solid fa-toolbox" aria-hidden="true"></i></span>
+      <span class="chatplus-tab-label">Workshops</span>
+    </button>
   </div>
 
   <!-- Tab Contents -->
@@ -75,6 +79,22 @@
         <!-- Folders will be rendered here -->
         <div class="chatplus-placeholder">
           <p>Create folders to organize your chats</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Workshops Tab -->
+    <div class="chatplus-tab-content" data-chatplus-tab="workshops">
+      <div class="chatplus-workshops-header">
+        <button class="menu_button chatplus-icon-btn" id="chatplus-save-workshop" title="Save current tabs as a workshop" aria-label="Save current tabs as a workshop">
+          <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+        </button>
+        <span class="chatplus-workshops-hint" id="chatplus-workshops-hint">Save the tabs you have open as a named workshop</span>
+      </div>
+      <div class="chatplus-workshops-list" id="chatplus-workshops-list">
+        <!-- Workshops will be rendered here -->
+        <div class="chatplus-placeholder">
+          <p>Open some tabs, then save them as a workshop</p>
         </div>
       </div>
     </div>

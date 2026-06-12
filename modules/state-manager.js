@@ -33,6 +33,13 @@ export class StateManager {
         //   selectedKey: '__main__' (the live ST chat) or a secondary chatKey
         chatTabs: { open: [], selectedKey: '__main__' },
 
+        // Workshops — named snapshots of the secondary-tab set (see workshops-controller.js).
+        //   workshops: [{ id, name, tabs: [tabObj…], createdAt, updatedAt }]
+        //   restoreSession: single auto-stash slot for the tab set replaced by the
+        //     last workshop open/close — { tabs: [tabObj…], stashedAt } or null.
+        workshops: [],
+        restoreSession: null,
+
         // Chat-tabs feature toggles (Extensions → ChatPlus 2 settings).
         tabsEnabled: true,         // master on/off for the whole chat-tabs feature
         tabsNativeStyling: true    // clone native .mes + #chat style alias (off = simple bubbles)
@@ -95,6 +102,19 @@ export class StateManager {
             }
             if (typeof this.settings.chatTabs.selectedKey !== 'string') {
                 this.settings.chatTabs.selectedKey = '__main__';
+            }
+            // Workshops may be missing (pre-feature settings) or malformed.
+            if (!Array.isArray(this.settings.workshops)) {
+                this.settings.workshops = [];
+            } else {
+                this.settings.workshops = this.settings.workshops.filter(
+                    w => w && typeof w === 'object' && typeof w.id === 'string' && Array.isArray(w.tabs)
+                );
+            }
+            if (this.settings.restoreSession !== null
+                && (typeof this.settings.restoreSession !== 'object'
+                    || !Array.isArray(this.settings.restoreSession?.tabs))) {
+                this.settings.restoreSession = null;
             }
 
             // Store reference back to extension settings for saving

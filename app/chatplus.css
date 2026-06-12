@@ -167,7 +167,8 @@
 /* Recent and Folders tabs — flex column that fills the panels area so
    the list inside can scroll independently of the rest of the page. */
 .chatplus-tab-content.active[data-chatplus-tab="recent"],
-.chatplus-tab-content.active[data-chatplus-tab="folders"] {
+.chatplus-tab-content.active[data-chatplus-tab="folders"],
+.chatplus-tab-content.active[data-chatplus-tab="workshops"] {
     position: absolute;
     inset: 0;
     display: flex;
@@ -1245,4 +1246,216 @@
 
 .chatplus-bulk-btn--danger:hover {
     background: rgba(231, 76, 60, 0.15);
+}
+
+/* ============================================================
+   WORKSHOPS
+   ============================================================ */
+.chatplus-workshops-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--SmartThemeBlurTintColor, rgba(0, 0, 0, 0.6));
+    box-shadow: 0 1px 0 var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.08));
+    flex: 0 0 auto;
+    min-height: 44px;
+}
+
+.chatplus-workshops-hint {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.78rem;
+    opacity: 0.6;
+    color: var(--SmartThemeBodyColor, #ddd);
+}
+
+.chatplus-workshops-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.6rem 0.5rem;
+}
+
+/* Card-style row: body column on the left, full-height Open button on the right. */
+.chatplus-workshop-item {
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+    border-radius: 8px;
+    background: var(--black30a, rgba(0, 0, 0, 0.15));
+}
+
+.chatplus-workshop-item--active {
+    border-color: var(--SmartThemeQuoteColor, #7b68ee);
+    box-shadow: inset 3px 0 0 var(--SmartThemeQuoteColor, #7b68ee);
+}
+
+.chatplus-workshop-item--restore {
+    background: rgba(123, 104, 238, 0.1);
+    border-style: dashed;
+}
+
+.chatplus-workshop-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.55rem 0.6rem;
+}
+
+.chatplus-workshop-titlerow {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.chatplus-workshop-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--SmartThemeBodyColor, #ddd);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chatplus-workshop-count {
+    font-size: 0.72rem;
+    opacity: 0.55;
+    color: var(--SmartThemeBodyColor, #bbb);
+}
+
+/* Character — chat list */
+.chatplus-workshop-tablist {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    margin-top: 0.15rem;
+}
+
+.chatplus-workshop-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.76rem;
+    color: var(--SmartThemeBodyColor, #ccc);
+    opacity: 0.75;
+    min-width: 0;
+}
+
+.chatplus-workshop-tab > i {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    opacity: 0.6;
+    width: 0.9rem;
+    text-align: center;
+}
+
+.chatplus-workshop-tab--main {
+    opacity: 1;
+}
+
+.chatplus-workshop-tab--main > i {
+    color: var(--SmartThemeQuoteColor, #7b68ee);
+    opacity: 0.9;
+}
+
+.chatplus-workshop-tab-char {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chatplus-workshop-tab-sep { flex: 0 0 auto; opacity: 0.4; }
+
+.chatplus-workshop-tab-file {
+    flex: 0 1 auto;
+    min-width: 0;
+    opacity: 0.7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Collapsible options (gear-toggled): replace / delete */
+.chatplus-workshop-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-top: 0.3rem;
+}
+
+.chatplus-workshop-options.chatplus-hidden { display: none; }
+
+.chatplus-workshop-option {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.chatplus-workshop-option--danger:hover {
+    color: #e74c3c;
+    border-color: rgba(231, 76, 60, 0.5);
+}
+
+/* Small inline icon buttons (rename / gear / dismiss) */
+.chatplus-workshop-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border: none;
+    background: transparent;
+    color: var(--SmartThemeBodyColor, #ccc);
+    cursor: pointer;
+    border-radius: 4px;
+    opacity: 0.55;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.chatplus-workshop-action:hover,
+.chatplus-workshop-action--active {
+    opacity: 1;
+    background: var(--white20a, rgba(255, 255, 255, 0.12));
+}
+
+.chatplus-workshop-action--active {
+    color: var(--SmartThemeQuoteColor, #7b68ee);
+}
+
+/* Full-height Open / Restore button on the right edge (mirrors Recent's "+"). */
+.chatplus-workshop-open {
+    align-self: stretch;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    border: none;
+    border-left: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.1));
+    background: transparent;
+    color: var(--SmartThemeBodyColor, #bbb);
+    cursor: pointer;
+    font-size: 1rem;
+    opacity: 0.7;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.chatplus-workshop-open:hover {
+    opacity: 1;
+    background: var(--white20a, rgba(255, 255, 255, 0.12));
+    color: var(--SmartThemeQuoteColor, #7b68ee);
 }

@@ -3,13 +3,11 @@
 /* ── Tab strip (docked above #chat inside #sheld) ───────────────────────── */
 .cp-tab-strip {
     display: flex;
-    align-items: stretch;
+    align-items: flex-start;     /* tabs hang from the top; only the active one grows */
     gap: 4px;
     flex: 0 0 auto;
-    min-height: 44px;
     padding: 3px 4px;
     box-sizing: border-box;
-    border-bottom: 1px solid var(--SmartThemeBorderColor);
     background-color: var(--black30a);
     overflow-x: auto;
     overflow-y: hidden;
@@ -18,22 +16,24 @@
     z-index: 2;
 }
 
+/* Item 1: nothing to switch to → strip vanishes entirely. */
+.cp-tab-strip--solo { display: none; }
+
 .cp-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
+    display: flex;
+    flex-direction: column;      /* head row + optional action row underneath */
     flex: 0 0 170px;
     width: 170px;
-    padding: 2px 6px;
-    border-radius: 8px 8px 0 0;
+    border-radius: 0 0 8px 8px;  /* item 3: rounded at the BOTTOM — hangs from the top */
     border: 1px solid var(--SmartThemeBorderColor);
-    border-bottom: none;
+    border-top: none;            /* flush against the strip's top edge */
     background-color: var(--black30a);
     color: var(--SmartThemeBodyColor);
     cursor: pointer;
     white-space: nowrap;
     font-size: 0.85em;
     opacity: 0.72;
+    overflow: hidden;
     transition: opacity 0.15s ease, background-color 0.15s ease;
 }
 
@@ -45,10 +45,64 @@
     border-color: var(--SmartThemeQuoteColor);
 }
 
+/* Drag-to-reorder feedback (secondary tabs). */
+.cp-tab--dragging {
+    opacity: 0.4;
+}
+
+.cp-tab--dragover {
+    box-shadow: inset 2px 0 0 var(--SmartThemeQuoteColor);
+}
+
+/* Head: the clickable selector row (icon + text + optional badge). */
+.cp-tab-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px;
+    min-height: 38px;
+    box-sizing: border-box;
+}
+
+/* Item 4: the Main chat reads distinctly as the real, hooked ST chat. */
+.cp-tab--main {
+    border-left: 3px solid var(--SmartThemeQuoteColor);
+}
+
 .cp-tab--main .cp-tab-main-icon {
     font-size: 0.85em;
     opacity: 0.85;
     flex: 0 0 auto;
+    color: var(--SmartThemeQuoteColor);
+    margin-right: 0.15em;
+}
+
+.cp-tab-main-badge {
+    flex: 0 0 auto;
+    align-self: center;
+    font-size: 0.6em;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 1px 4px;
+    border-radius: 4px;
+    color: var(--SmartThemeBlurTintColor, #000);
+    background-color: var(--SmartThemeQuoteColor);
+    opacity: 0.9;
+}
+
+/* Action row: gear / promote / close split evenly across the tab width,
+   shown only under the active secondary tab (item 2). */
+.cp-tab-actions {
+    display: flex;
+    align-items: stretch;
+    border-top: 1px solid var(--SmartThemeBorderColor);
+}
+
+.cp-tab-actions .cp-tab-icon-btn {
+    flex: 1 1 0;
+    width: auto;
+    height: 28px;
+    border-radius: 0;
 }
 
 /* Stacked title + subtitle text block (takes the remaining width). */

@@ -151,6 +151,7 @@ export class FoldersView {
     _renderFolderTree(folders, container, level) {
         const allFolders = this.folderSystemManager.getAllFolders();
         const expandedSet = this._getExpandedSet();
+        const tabsEnabled = CoreAPI.getStateManager()?.get('tabsEnabled') !== false;
 
         for (const folder of folders) {
             const chatCount = this.folderSystemManager.getFolderChats(folder.id, false).length;
@@ -164,6 +165,11 @@ export class FoldersView {
 
             const el = this.uiRenderer.renderFolder(folder, level, {
                 expanded: shouldExpand,
+                // "Open as tabs" only when the chat-tabs feature is on AND the
+                // folder actually has chats to open.
+                onOpenAsTabs: (tabsEnabled && chatCount > 0)
+                    ? (f) => this._openFolderAsTabs(f.id)
+                    : undefined,
                 onExpand: (folderId, folderEl) =>
                     this._onExpand(folderId, folderEl, level + 1),
                 onRename: (f) => this._onRename(f),
@@ -176,6 +182,56 @@ export class FoldersView {
 
             container.appendChild(el);
         }
+    }
+
+    /**
+     * Open every (resolvable, non-group) chat in a folder as a secondary tab.
+     * Reuses ChatTabsController.openSecondaryTab, which de-dupes and focuses
+     * already-open chats. Groups and orphaned keys are skipped.
+     *
+     * @param {string} folderId
+     * @private
+     */
+    async _openFolderAsTabs(folderId) {
+        const controller = CoreAPI.getModule('ChatTabsController');
+        if (!controller) {
+            CoreAPI.showToast('Chat tabs are not available', 'error');
+            return;
+        }
+
+        const keys = this.folderSystemManager.getFolderChats(folderId, false);
+        const chats = [];
+        let skippedGroups = 0;
+        let skippedOrphans = 0;
+
+        for (const key of keys) {
+            const chat = this.chatRepository?.getChatByKey(key);
+            if (!chat) { skippedOrphans++; continue; }
+            if (chat.group_id) { skippedGroups++; continue; }
+            chats.push(chat);
+        }
+
+        if (chats.length === 0) {
+            CoreAPI.showToast('No openable chats in this folder (groups and unresolved chats are skipped)', 'info');
+            return;
+        }
+
+        // Opening a large folder spawns a lot of tabs — confirm first.
+        if (chats.length > 10) {
+            const ok = await CoreAPI.showConfirmation(
+                `Open ${chats.length} chats as tabs?`,
+                'Open folder as tabs'
+            );
+            if (!ok) return;
+        }
+
+        for (const chat of chats) controller.openSecondaryTab(chat);
+
+        const extras = [];
+        if (skippedGroups) extras.push(`${skippedGroups} group${skippedGroups !== 1 ? 's' : ''}`);
+        if (skippedOrphans) extras.push(`${skippedOrphans} unresolved`);
+        const suffix = extras.length ? ` (skipped ${extras.join(', ')})` : '';
+        CoreAPI.showToast(`Opened ${chats.length} chat${chats.length !== 1 ? 's' : ''} as tabs${suffix}`, 'success');
     }
 
     /**

@@ -431,7 +431,7 @@ export class UIRenderer {
      * @returns {HTMLElement}
      */
     renderFolder(folder, level = 0, options = {}) {
-        const { expanded: startExpanded = false, onExpand, onRename, onCreateSubfolder, onToggleOptions, onToggleExpand } = options;
+        const { expanded: startExpanded = false, onExpand, onRename, onCreateSubfolder, onToggleOptions, onToggleExpand, onOpenAsTabs } = options;
 
         const tpl = document.getElementById('chatplus-folder-item-template');
         if (!tpl) {
@@ -452,7 +452,15 @@ export class UIRenderer {
 
         nameEl.textContent = folder.name || 'Unnamed Folder';
 
-        // ── Action buttons: rename, subfolder, gear ─────────────
+        // ── Action buttons: open-as-tabs, rename, subfolder, gear ───────
+        if (onOpenAsTabs) {
+            actions.appendChild(
+                this._makeActionBtn('fa-regular fa-window-maximize', 'Open folder as tabs', (e) => {
+                    e.stopPropagation();
+                    onOpenAsTabs(folder);
+                })
+            );
+        }
         if (onRename) {
             actions.appendChild(
                 this._makeActionBtn('fa-solid fa-pencil-alt', 'Rename folder', (e) => {
