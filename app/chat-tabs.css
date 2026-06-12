@@ -1,0 +1,242 @@
+/* ChatPlus 2 — Multi-profile chat tabs (strip + per-tab panels) */
+
+/* ── Tab strip (docked above #chat inside #sheld) ───────────────────────── */
+.cp-tab-strip {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    flex: 0 0 auto;
+    min-height: 44px;
+    padding: 3px 4px;
+    box-sizing: border-box;
+    border-bottom: 1px solid var(--SmartThemeBorderColor);
+    background-color: var(--black30a);
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    position: relative;
+    z-index: 2;
+}
+
+.cp-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 170px;
+    width: 170px;
+    padding: 2px 6px;
+    border-radius: 8px 8px 0 0;
+    border: 1px solid var(--SmartThemeBorderColor);
+    border-bottom: none;
+    background-color: var(--black30a);
+    color: var(--SmartThemeBodyColor);
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 0.85em;
+    opacity: 0.72;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.cp-tab:hover { opacity: 1; }
+
+.cp-tab--active {
+    opacity: 1;
+    background-color: var(--SmartThemeBlurTintColor);
+    border-color: var(--SmartThemeQuoteColor);
+}
+
+.cp-tab--main .cp-tab-main-icon {
+    font-size: 0.85em;
+    opacity: 0.85;
+    flex: 0 0 auto;
+}
+
+/* Stacked title + subtitle text block (takes the remaining width). */
+.cp-tab-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.cp-tab-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cp-tab-subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.72em;
+    opacity: 0.6;
+}
+
+.cp-tab-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    width: 15px;
+    height: 16px;
+    border-radius: 4px;
+    opacity: 0.55;
+    font-size: 0.8em;
+}
+
+.cp-tab-icon-btn:hover {
+    opacity: 1;
+    background-color: var(--white20a);
+}
+
+/* ── Per-tab panels (replace #chat when a secondary tab is selected) ─────── */
+.cp-tab-panels {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: none;          /* shown only when a secondary tab is selected */
+    flex-direction: column;
+}
+
+/* Clean hide/show: swap ST's native chat for our panels. Removing the class
+   fully restores native layout — no inline styles touched on ST elements. */
+#sheld.cp-secondary-active > #chat,
+#sheld.cp-secondary-active > #form_sheld {
+    display: none !important;
+}
+
+#sheld.cp-secondary-active > #chatplus-tab-panels {
+    display: flex;
+}
+
+.cp-tab-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.cp-tab-panel[hidden] { display: none; }
+
+/* Transcript reads like the native #chat area: native `.mes` nodes (cloned
+   from #message_template) bring their own padding + theming, so no custom
+   bubble styling here — just the scroll container + chat tint/blur. */
+.cp-tab-transcript {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    scrollbar-width: thin;
+    background-color: var(--SmartThemeChatTintColor);
+    backdrop-filter: blur(var(--SmartThemeBlurStrength));
+    -webkit-backdrop-filter: blur(var(--SmartThemeBlurStrength));
+}
+
+.cp-tab-loading,
+.cp-tab-empty {
+    margin: auto;
+    opacity: 0.6;
+    text-align: center;
+}
+
+.cp-tab-pending .mes_text { opacity: 0.7; }
+
+/* Fallback bubbles — used when "Match main-chat styling" is OFF. */
+.cp-tab-msg {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 8px 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background-color: var(--black30a);
+    border: 1px solid var(--SmartThemeBorderColor);
+    max-width: calc(100% - 24px);
+}
+
+.cp-tab-msg--user { background-color: var(--black50a); }
+
+.cp-tab-msg-name {
+    font-weight: 600;
+    font-size: 0.8em;
+    opacity: 0.8;
+}
+
+.cp-tab-msg-text {
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* ── Composer ───────────────────────────────────────────────────────────── */
+.cp-tab-composer {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+    padding: 8px;
+    border-top: 1px solid var(--SmartThemeBorderColor);
+    background-color: var(--black30a);
+}
+
+.cp-tab-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    resize: vertical;
+    max-height: 30vh;
+    min-height: 2.4em;
+}
+
+.cp-tab-send { flex: 0 0 auto; }
+
+/* ── Gear profile popover ────────────────────────────────────────────────── */
+.cp-tab-profile-popover {
+    position: fixed;
+    z-index: 10050; /* above ST chrome, below modal dialogs */
+    min-width: 240px;
+    max-width: 320px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--SmartThemeBorderColor);
+    background-color: var(--SmartThemeBlurTintColor);
+    box-shadow: 0 6px 20px var(--black50a);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cp-tab-profile-popover-title {
+    font-size: 0.85em;
+    opacity: 0.8;
+}
+
+/* ── Recent-entry "+" (open in tab) ──────────────────────────────────────── */
+.chatplus-chat-open-tab {
+    align-self: stretch;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    margin-left: 2px;
+    border: none;
+    border-left: 1px solid var(--SmartThemeBorderColor);
+    background: transparent;
+    color: var(--SmartThemeBodyColor, #bbb);
+    cursor: pointer;
+    opacity: 0.45;
+    transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.chatplus-chat-open-tab:hover {
+    opacity: 1;
+    background-color: var(--white20a);
+    color: var(--SmartThemeQuoteColor);
+}

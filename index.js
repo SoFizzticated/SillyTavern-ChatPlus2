@@ -386,6 +386,38 @@ function wireSettingsPanel() {
         }
     }
 
+    // ── Chat Tabs feature toggles (apply live) ──
+    // Persist via StateManager.set() so the cached settings stay in sync, then apply the change immediately through the coordinator. coordinatorRef is read lazily (it's null at wire time, set by the time of a click).
+    const tabsEnabledCb = document.getElementById('chatplus2-tabs-enabled');
+    if (tabsEnabledCb) {
+        tabsEnabledCb.checked = settings.tabsEnabled !== false;
+        tabsEnabledCb.addEventListener('change', () => {
+            const on = tabsEnabledCb.checked;
+            const sm = coordinatorRef?.stateManager;
+            if (sm?.set) sm.set('tabsEnabled', on); else { settings.tabsEnabled = on; saveSettings(); }
+            try {
+                coordinatorRef?.setChatTabsEnabled?.(on);
+            } catch (error) {
+                console.error(`[${MODULE_NAME}] setChatTabsEnabled failed:`, error);
+            }
+        });
+    }
+
+    const tabsStylingCb = document.getElementById('chatplus2-tabs-native-styling');
+    if (tabsStylingCb) {
+        tabsStylingCb.checked = settings.tabsNativeStyling !== false;
+        tabsStylingCb.addEventListener('change', () => {
+            const on = tabsStylingCb.checked;
+            const sm = coordinatorRef?.stateManager;
+            if (sm?.set) sm.set('tabsNativeStyling', on); else { settings.tabsNativeStyling = on; saveSettings(); }
+            try {
+                coordinatorRef?.chatTabsView?.refreshStyleMode?.();
+            } catch (error) {
+                console.error(`[${MODULE_NAME}] refreshStyleMode failed:`, error);
+            }
+        });
+    }
+
     // ── Default Tab ──
     const tabRow = document.getElementById('chatplus2-settings-default-tab');
     if (tabRow) {
@@ -860,6 +892,19 @@ function wireSettingsPanel() {
 // ─────────────────────────────────────────
 
 /**
+ * Inject the chat-tabs stylesheet. The manifest only declares chatplus.css, so the multi-profile chat-tabs styles are loaded here. Idempotent.
+ */
+function injectChatTabsStylesheet() {
+    const id = 'chatplus2-chat-tabs-css';
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = `/scripts/extensions/${EXTENSION_FOLDER}/app/chat-tabs.css`;
+    document.head.appendChild(link);
+}
+
+/**
  * Inject tabs into SillyTavern UI
  */
 function injectTabsIntoUI(templateHTML) {
@@ -876,11 +921,8 @@ function injectTabsIntoUI(templateHTML) {
     container.id = 'chatplus-root';
     container.innerHTML = templateHTML;
 
-    // Insert as immediate PREVIOUS sibling of #rm_PinAndTabs (matches
-    // ChatPlus v1's placement above the pin/tabs bar).
-    // Deliberately do NOT move or reparent any SillyTavern DOM — the
-    // ChatPlus tab panels live alongside `.scrollableInner`, and the
-    // TabController toggles visibility on it via `.chatplus-native-hidden`.
+    // Insert as immediate PREVIOUS sibling of #rm_PinAndTabs (matches ChatPlus v1's placement above the pin/tabs bar).
+    // Deliberately do NOT move or reparent any SillyTavern DOM — the ChatPlus tab panels live alongside `.scrollableInner`, and the TabController toggles visibility on it via `.chatplus-native-hidden`.
     pinAndTabs.parentNode.insertBefore(container, pinAndTabs);
 
     console.log(`[${MODULE_NAME}] UI injected successfully`);
@@ -988,6 +1030,9 @@ async function initialize() {
         isInitialized = true;
         return;
     }
+
+    // Load the chat-tabs stylesheet (manifest only declares chatplus.css).
+    injectChatTabsStylesheet();
 
     // Inject main tab UI
     if (!injectTabsIntoUI(tabsHTML)) return;

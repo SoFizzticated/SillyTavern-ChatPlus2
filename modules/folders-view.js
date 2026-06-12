@@ -879,6 +879,12 @@ export class FoldersView {
     // ─────────────────────────────────────────
 
     async _openChat(chat) {
+        // Tabs-aware routing: if the chat is already open (as a secondary tab
+        // or as the live main chat), focus it instead of a heavy switch.
+        if (CoreAPI.getStateManager()?.get('tabsEnabled') !== false
+            && CoreAPI.getModule('ChatTabsController')?.focusIfOpen?.(chat)) {
+            return true;
+        }
         try {
             const ok = await CoreAPI.openChat({
                 file_name: chat.file_name,

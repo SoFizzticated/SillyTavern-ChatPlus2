@@ -52,7 +52,7 @@ export class UIRenderer {
      * @returns {HTMLElement|null}
      */
     renderChatItem(chat, options = {}) {
-        const { isPinned = false, isActive = false, editMode = false, selected = false, onOpen, onPin, onRename, onRemoveFromFolder, onAddToFolder, onDelete, onSelect, includeEntityPrefix = true, includeAvatar = true } = options;
+        const { isPinned = false, isActive = false, editMode = false, selected = false, onOpen, onOpenInTab, onPin, onRename, onRemoveFromFolder, onAddToFolder, onDelete, onSelect, includeEntityPrefix = true, includeAvatar = true } = options;
 
         try {
             const chatKey = ChatIdentifier.getChatKey(chat);
@@ -116,11 +116,28 @@ export class UIRenderer {
 
             item.appendChild(info);
 
+            // ── Open-in-tab "+" (Recent tab only — gated on the callback) ──
+            // Full-height button at the right edge that opens the chat as a secondary multi-profile tab instead of switching the main chat.
+            if (onOpenInTab) {
+                const openTabBtn = document.createElement('button');
+                openTabBtn.type = 'button';
+                openTabBtn.className = 'chatplus-chat-open-tab';
+                openTabBtn.title = 'Open in a new chat tab';
+                openTabBtn.setAttribute('aria-label', 'Open in a new chat tab');
+                openTabBtn.innerHTML = '<i class="fa-solid fa-plus" aria-hidden="true"></i>';
+                openTabBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    onOpenInTab(chat);
+                });
+                item.appendChild(openTabBtn);
+            }
+
             // ── Tap / click to open ─────────────────────────────────────
             // Ignore clicks originating from the action buttons zone or checkboxes.
             item.addEventListener('click', (e) => {
                 if (e.target.closest('.chatplus-chat-actions')) return;
                 if (e.target.closest('.chatplus-edit-checkbox')) return;
+                if (e.target.closest('.chatplus-chat-open-tab')) return;
                 // Edit mode takes precedence: clicking the row toggles the checkbox
                 // instead of opening the chat.
                 if (editMode && onSelect) {

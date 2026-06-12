@@ -14,6 +14,8 @@ import FolderSystemManager from '../modules/folder-system.js';
 import RecentChatsView from '../modules/recent-chats.js';
 import FoldersView from '../modules/folders-view.js';
 import TabController from '../modules/tab-controller.js';
+import ChatTabsController from '../modules/chat-tabs-controller.js';
+import ChatTabsView from '../modules/chat-tabs-view.js';
 import SearchFilter from '../modules/search-filter.js';
 import UIRenderer from '../modules/ui-renderer.js';
 import LostAndFound from '../modules/lost-and-found.js';
@@ -34,6 +36,8 @@ class ChatPlusCoordinator {
         this.recentChatsView = null;
         this.foldersView = null;
         this.tabController = null;
+        this.chatTabsController = null;
+        this.chatTabsView = null;
         this.searchFilter = null;
         this.uiRenderer = null;
         this.eventHandlers = null;
@@ -206,6 +210,9 @@ class ChatPlusCoordinator {
 
             console.debug('[ChatPlus2] FoldersView initialized');
 
+            // Multi-profile chat tabs are created in Phase 4, gated on the
+            // `tabsEnabled` master toggle (see _createChatTabs / setChatTabsEnabled).
+
             // ========================================
             // PHASE 4: INITIAL UI RENDER
             // ========================================
@@ -214,6 +221,11 @@ class ChatPlusCoordinator {
             console.debug('[ChatPlus2] Phase 4: Activating default tab...');
 
             this.tabController.init();
+
+            // Multi-profile chat tabs — only when the master toggle is on.
+            if (this.stateManager.get('tabsEnabled') !== false) {
+                this._createChatTabs();
+            }
 
             // Wire search bar DOM elements now that the HTML is fully injected
             this.searchFilter.init();
@@ -246,6 +258,51 @@ class ChatPlusCoordinator {
             CoreAPI.showToast('ChatPlus 2 initialization failed. Check console for details.', 'error');
             return false;
         }
+    }
+
+    /**
+     * Create + mount the multi-profile chat-tabs feature (controller + view).
+     * Idempotent — a no-op if already built.
+     * @private
+     */
+    _createChatTabs() {
+        if (this.chatTabsController) return;
+        this.chatTabsController = new ChatTabsController(this.stateManager);
+        CoreAPI.registerModule('ChatTabsController', this.chatTabsController);
+        this.chatTabsView = new ChatTabsView(this.chatTabsController);
+        CoreAPI.registerModule('ChatTabsView', this.chatTabsView);
+        // Mount first so the view's subscriptions are live before the controller
+        // emits its initial render events.
+        this.chatTabsView.mount();
+        this.chatTabsController.init();
+        console.debug('[ChatPlus2] Chat tabs created');
+    }
+
+    /**
+     * Tear down the chat-tabs feature (restores the native chat layout).
+     * @private
+     */
+    _destroyChatTabs() {
+        this.chatTabsView?.destroy();
+        this.chatTabsView = null;
+        this.chatTabsController?.destroy();
+        this.chatTabsController = null;
+        CoreAPI.registerModule('ChatTabsView', null);
+        CoreAPI.registerModule('ChatTabsController', null);
+        console.debug('[ChatPlus2] Chat tabs destroyed');
+    }
+
+    /**
+     * Live master toggle for the chat-tabs feature (from the settings drawer).
+     * Also refreshes the Recent list so the per-row "+" appears/disappears.
+     * @param {boolean} on
+     */
+    setChatTabsEnabled(on) {
+        if (on) this._createChatTabs();
+        else this._destroyChatTabs();
+        try {
+            this.recentChatsView?.refresh?.().catch?.(() => { });
+        } catch { /* no-op */ }
     }
 
     /**
@@ -349,6 +406,10 @@ class ChatPlusCoordinator {
         this.recentChatsView = null; this.foldersView?.destroy();
         this.foldersView = null; this.tabController?.destroy();
         this.tabController = null;
+        this.chatTabsView?.destroy();
+        this.chatTabsView = null;
+        this.chatTabsController?.destroy();
+        this.chatTabsController = null;
         this.searchFilter?.destroy();
         this.searchFilter = null;
         this.uiRenderer = null;

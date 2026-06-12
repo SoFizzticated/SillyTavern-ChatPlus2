@@ -25,7 +25,17 @@ export class StateManager {
         expandedFolders: [],       // Array of folder IDs that are currently expanded
         lastMigrationCheck: null,  // Timestamp of last v1 migration check
         migrationCompleted: false, // Whether v1 migration has been completed
-        _lastRanVersion: null      // Last extension version that ran onInstall/onUpdate (set by lifecycle hooks in index.js)
+        _lastRanVersion: null,     // Last extension version that ran onInstall/onUpdate (set by lifecycle hooks in index.js)
+
+        // Multi-profile chat tabs (see chat-tabs-controller.js).
+        //   open: ordered array of SECONDARY (headless) tab objects
+        //     { chatKey, avatar, fileName, characterName, profileId, lastActiveAt }
+        //   selectedKey: '__main__' (the live ST chat) or a secondary chatKey
+        chatTabs: { open: [], selectedKey: '__main__' },
+
+        // Chat-tabs feature toggles (Extensions → ChatPlus 2 settings).
+        tabsEnabled: true,         // master on/off for the whole chat-tabs feature
+        tabsNativeStyling: true    // clone native .mes + #chat style alias (off = simple bubbles)
     };
 
     constructor() {
@@ -74,6 +84,17 @@ export class StateManager {
             if (typeof this.settings.chatFolders !== 'object' || this.settings.chatFolders === null) {
                 console.warn('[ChatPlus2] Invalid chatFolders, resetting to empty object');
                 this.settings.chatFolders = {};
+            }
+            // chatTabs may be missing (pre-feature settings) or malformed.
+            if (typeof this.settings.chatTabs !== 'object' || this.settings.chatTabs === null) {
+                this.settings.chatTabs = { open: [], selectedKey: '__main__' };
+            }
+            if (!Array.isArray(this.settings.chatTabs.open)) {
+                console.warn('[ChatPlus2] Invalid chatTabs.open, resetting to empty array');
+                this.settings.chatTabs.open = [];
+            }
+            if (typeof this.settings.chatTabs.selectedKey !== 'string') {
+                this.settings.chatTabs.selectedKey = '__main__';
             }
 
             // Store reference back to extension settings for saving

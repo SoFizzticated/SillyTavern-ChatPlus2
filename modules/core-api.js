@@ -28,7 +28,7 @@
  */
 
 import { getGroupPastChats, getGroupAvatar, openGroupById } from '../../../../group-chats.js';
-import { setActiveCharacter, setActiveGroup } from '../../../../../script.js';
+import { setActiveCharacter, setActiveGroup, user_avatar, default_user_avatar } from '../../../../../script.js';
 
 // These ST helpers are NOT exposed on `SillyTavern.getContext()` but are
 // required for correct entity switching (group UI sync via openGroupById)
@@ -1070,6 +1070,819 @@ export async function fetchChatMessages(avatar, fileName, isGroup = false) {
 }
 
 // ========================================
+// CONNECTION PROFILES + HEADLESS MESSAGING
+// ========================================
+//
+// These power the multi-profile chat tabs feature. A "headless" send generates
+// a reply through a SECONDARY connection profile WITHOUT switching the active
+// character/chat (no preset/lorebook/extension reload). The mechanism is ST's
+// ConnectionManagerRequestService.sendRequest — the same one ST-Copilot uses.
+// History persists straight to the target chat's real .jsonl so a later
+// "Promote to full chat" (openChat) loads it natively with everything intact.
+
+/**
+ * List the connection profiles configured in the Connection Manager extension.
+ * Prefers the service's filtered list; falls back to raw settings.
+ * @returns {Array<Object>} Array of profile objects ({ id, name, api, model, ... })
+ */
+export function getConnectionProfiles() {
+    const context = getContext();
+    try {
+        const service = context?.ConnectionManagerRequestService;
+        if (service && typeof service.getSupportedProfiles === 'function') {
+            const list = service.getSupportedProfiles();
+            if (Array.isArray(list)) return list;
+        }
+    } catch (error) {
+        console.warn('[ChatPlus2] getSupportedProfiles failed, using raw settings:', error);
+    }
+    const raw = context?.extensionSettings?.connectionManager?.profiles;
+    return Array.isArray(raw) ? raw : [];
+}
+
+/**
+ * Get the id of the globally-active connection profile (the one the main chat
+ * uses), or null when none is selected.
+ * @returns {string|null}
+ */
+export function getActiveProfileId() {
+    return getContext()?.extensionSettings?.connectionManager?.selectedProfile || null;
+}
+
+/**
+ * Find a connection profile by id.
+ * @param {string} id
+ * @returns {Object|null}
+ */
+export function getProfileById(id) {
+    if (!id) return null;
+    return getConnectionProfiles().find(p => p.id === id) || null;
+}
+
+/**
+ * Whether the Connection Manager request service is available. The headless
+ * send path requires it; callers should degrade gracefully (e.g. fall back to
+ * "Promote to full chat") when this returns false.
+ * @returns {boolean}
+ */
+export function isHeadlessSendAvailable() {
+    const service = getContext()?.ConnectionManagerRequestService;
+    return !!(service && typeof service.sendRequest === 'function');
+}
+
+/**
+ * Produce a SillyTavern-style message timestamp string. ST's own
+ * getMessageTimeStamp is not exposed on the context, so fall back to an ISO
+ * string (ST's addOneMessage tolerates any parseable date).
+ * @returns {string}
+ */
+export function getMessageTimeStamp() {
+    const fn = getContext()?.getMessageTimeStamp;
+    if (typeof fn === 'function') {
+        try { return fn(); } catch { /* fall through */ }
+    }
+    return new Date().toISOString();
+}
+
+/**
+ * Render message text to SillyTavern's sanitized HTML (markdown, macros, regex
+ * display) so overlay transcript bubbles match the native chat. Thin wrapper
+ * over context.messageFormatting.
+ * @param {string} mes - Raw message text
+ * @param {string} charName - Name to attribute the message to
+ * @param {boolean} isUser - Whether this is a user message
+ * @param {number} [messageId=0] - Message index (used by some regex scripts)
+ * @returns {string} Sanitized HTML
+ */
+export function formatMessageHtml(mes, charName, isUser, messageId = 0) {
+    const fn = getContext()?.messageFormatting;
+    if (typeof fn !== 'function') {
+        return escapeHtml(String(mes ?? ''));
+    }
+    try {
+        return fn(String(mes ?? ''), charName, false, !!isUser, messageId, {}, false);
+    } catch (error) {
+        console.warn('[ChatPlus2] messageFormatting failed, falling back to escaped text:', error);
+        return escapeHtml(String(mes ?? ''));
+    }
+}
+
+/**
+ * Build a chat message DOM node that looks identical to a native main-chat
+ * message, so user themes / custom CSS apply (ST's `.mes` styling is global,
+ * not `#chat`-scoped). Clones ST's `#message_template .mes` and populates only
+ * the DISPLAY fields, then strips every interactive/stateful control so no
+ * global ST handler can fire on it and the live `chat[]` is never touched.
+ *
+ * Deliberately does NOT use ST's `updateMessageElement` (script.js:2559): that
+ * derives non-user avatars from the ACTIVE character and calls updateSwipeCounter
+ * which reads global chat[] — both wrong/unsafe for an off-screen secondary chat.
+ *
+ * @param {Object} mes - Message object ({ name, is_user, mes, send_date, extra })
+ * @param {Object} opts
+ * @param {string} opts.avatar - The chat's character avatar filename (for char messages)
+ * @param {string} [opts.characterName] - Fallback display name for char messages
+ * @returns {HTMLElement} A `.mes` element ready to append to a transcript
+ */
+export function buildChatMessageElement(mes, { avatar, characterName } = {}) {
+    const context = getContext();
+    const isUser = !!mes.is_user;
+    const name = mes.name || characterName || (isUser ? (context?.name1 || 'You') : (characterName || 'Assistant'));
+
+    // Clone ST's message template; fall back to a minimal node if absent.
+    const tpl = document.querySelector('#message_template .mes');
+    /** @type {HTMLElement} */
+    let el;
+    if (tpl) {
+        el = /** @type {HTMLElement} */ (tpl.cloneNode(true));
+    } else {
+        el = document.createElement('div');
+        el.className = 'mes';
+        el.innerHTML = '<div class="mesAvatarWrapper"><div class="avatar"><img></div></div>'
+            + '<div class="mes_block"><div class="ch_name"><span class="name_text"></span>'
+            + '<small class="timestamp"></small></div><div class="mes_text"></div></div>';
+    }
+
+    // ── Avatar src ──
+    const getThumb = context?.getThumbnailUrl;
+    let avatarSrc;
+    if (isUser) {
+        avatarSrc = (getThumb ? getThumb('persona', user_avatar) : null) || default_user_avatar;
+    } else {
+        avatarSrc = (getThumb && avatar ? getThumb('avatar', avatar) : null) || '/img/ai4.png';
+    }
+
+    // ── Attributes used by theme selectors ──
+    el.setAttribute('is_user', String(isUser));
+    el.setAttribute('is_system', 'false');
+    el.setAttribute('ch_name', name);
+    el.removeAttribute('mesid'); // not a real chat index — keep empty
+
+    const imgEl = el.querySelector('.avatar img');
+    if (imgEl) {
+        imgEl.setAttribute('src', avatarSrc);
+        imgEl.addEventListener('error', () => {
+            imgEl.style.display = 'none';
+            const parent = imgEl.parentElement;
+            if (parent) parent.innerHTML = '<div class="missing-avatar fa-solid fa-user-slash"></div>';
+        });
+    }
+
+    const nameEl = el.querySelector('.ch_name .name_text');
+    if (nameEl) nameEl.textContent = name;
+
+    // ── Timestamp (best-effort) ──
+    const tsEl = el.querySelector('.timestamp');
+    if (tsEl) {
+        let ts = '';
+        try {
+            const moment = context?.timestampToMoment?.(mes.send_date) || (window.moment ? window.moment(mes.send_date) : null);
+            if (moment && moment.isValid?.()) ts = moment.format('LL LT');
+        } catch { /* leave blank */ }
+        tsEl.textContent = ts;
+    }
+
+    const textEl = el.querySelector('.mes_text');
+    if (textEl) textEl.innerHTML = formatMessageHtml(mes.mes || '', name, isUser, 0);
+
+    // ── Strip interactive / stateful chrome so no global handlers fire ──
+    const STRIP = [
+        '.mes_buttons', '.mes_edit_buttons', '.del_checkbox', '.for_checkbox',
+        '.swipe_left', '.swipe_right', '.swipeRightBlock', '.mesIDDisplay',
+        '.tokenCounterDisplay', '.mes_timer', '.mes_reasoning_details',
+        '.mes_bias', '.mes_media_wrapper', '.mes_file_wrapper', '.mes_ghost',
+    ];
+    for (const sel of STRIP) el.querySelectorAll(sel).forEach(n => n.remove());
+
+    return el;
+}
+
+// ─── #chat CSS theme parity (re-scoping) ──────────────────────────────────
+// Some message styling is scoped to the unique `#chat` id (Document display
+// mode, `#chat .mes.selected`, and arbitrary user-theme custom CSS). Those
+// rules don't reach our off-screen panel. We mirror every `#chat …` rule onto
+// our container by rewriting the `#chat` token to a chosen scope selector and
+// injecting the result as a `<style>`. Pure CSS — never touches ST's DOM/JS or
+// the `#chat` id, so the live chat is unaffected. Duplicating `id="chat"` would
+// be unsafe (ST queries `#chat .mes[mesid=…]` / scrolls `$('#chat')`).
+
+const CHAT_ALIAS_STYLE_ID = 'chatplus-chat-style-alias';
+const _ALIAS_PAINT_PROPS = new Set([
+    'background', 'background-color', 'background-image', 'background-position',
+    'background-size', 'background-repeat', 'background-attachment', 'background-blend-mode',
+    'backdrop-filter', '-webkit-backdrop-filter', 'box-shadow', 'text-shadow', 'color',
+    'border', 'border-color', 'border-width', 'border-style', 'border-radius',
+    'border-top', 'border-bottom', 'border-left', 'border-right', 'filter', 'opacity',
+]);
+
+/** Split a selector list on top-level commas (ignore commas inside ()/[]). @private */
+function _splitSelectorList(sel) {
+    const parts = [];
+    let depth = 0;
+    let cur = '';
+    for (const ch of sel) {
+        if (ch === '(' || ch === '[') depth++;
+        else if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+        if (ch === ',' && depth === 0) { parts.push(cur.trim()); cur = ''; }
+        else cur += ch;
+    }
+    if (cur.trim()) parts.push(cur.trim());
+    return parts;
+}
+
+/** True if a descendant/combinator + token follows the `#chat` compound. @private */
+function _hasDescendantAfterChat(sel) {
+    // Match `#chat` plus any chained simple selectors (.class / :pseudo(...) /
+    // [attr] / #id), then check whether a combinator + token still follows.
+    const re = /#chat(?![\w-])(?:[.:#][\w-]+(?:\([^)]*\))?|\[[^\]]*\])*/;
+    const m = re.exec(sel);
+    if (!m) return false;
+    return sel.slice(m.index + m[0].length).trim().length > 0;
+}
+
+/** Keep only paint-related declarations from a style decl (for container rules). @private */
+function _filterPaintProps(style) {
+    const out = [];
+    for (let i = 0; i < style.length; i++) {
+        const prop = style[i];
+        if (_ALIAS_PAINT_PROPS.has(prop)) {
+            const pri = style.getPropertyPriority(prop);
+            out.push(`${prop}: ${style.getPropertyValue(prop)}${pri ? ' !' + pri : ''};`);
+        }
+    }
+    return out.join(' ');
+}
+
+/**
+ * Resolve a (possibly nested) selector list against its parent selectors,
+ * flattening native CSS nesting. `&` is substituted with each parent; a nested
+ * selector without `&` (implicit nesting, e.g. `#chat .mes_block`) becomes a
+ * descendant of the parent. Top-level rules (no parent) are returned as-is.
+ * @private
+ */
+function _resolveSelectors(parentSelectors, selectorText) {
+    const own = _splitSelectorList(selectorText);
+    if (!parentSelectors || parentSelectors.length === 0) return own;
+    const out = [];
+    for (const p of parentSelectors) {
+        for (const n of own) {
+            out.push(n.includes('&') ? n.replace(/&/g, p) : `${p} ${n}`);
+        }
+    }
+    return out;
+}
+
+/** Emit rescoped CSS for the resolved selectors that touch `#chat`. @private */
+function _emitRescoped(selectors, style, scope) {
+    const fullDecls = style?.cssText;
+    if (!fullDecls) return '';
+    const lines = [];
+    for (const part of selectors) {
+        if (!/#chat(?![\w-])/.test(part)) continue;
+        const selector = part.replace(/#chat(?![\w-])/g, scope);
+        if (_hasDescendantAfterChat(part)) {
+            lines.push(`${selector} { ${fullDecls} }`);
+        } else {
+            // Container-level `#chat {…}` — only carry paint props so a themed
+            // chat background transfers without breaking our flex layout.
+            const paint = _filterPaintProps(style);
+            if (paint) lines.push(`${selector} { ${paint} }`);
+        }
+    }
+    return lines.join('\n');
+}
+
+/**
+ * Recursively collect rescoped CSS from a CSSRuleList, flattening native CSS
+ * nesting (resolving `&` / implicit descendants against `parentSelectors`).
+ * @private
+ */
+function _collectAliasRules(rules, scope, parentSelectors = null) {
+    const out = [];
+    for (const rule of Array.from(rules)) {
+        // Style rule (top-level OR nested) — identified by selectorText.
+        if (typeof rule.selectorText === 'string') {
+            const resolved = _resolveSelectors(parentSelectors, rule.selectorText);
+            const css = _emitRescoped(resolved, rule.style, scope);
+            if (css) out.push(css);
+            if (rule.cssRules && rule.cssRules.length) {
+                out.push(..._collectAliasRules(rule.cssRules, scope, resolved));
+            }
+            continue;
+        }
+        // Conditional group rule (@media / @supports) — recurse with the SAME
+        // parent context, preserving the wrapper.
+        if (rule.cssRules && (rule.media || rule.conditionText)) {
+            const inner = _collectAliasRules(rule.cssRules, scope, parentSelectors);
+            if (inner.length) {
+                const cond = rule.media
+                    ? `@media ${rule.media.mediaText}`
+                    : `@supports ${rule.conditionText}`;
+                out.push(`${cond} {\n${inner.join('\n')}\n}`);
+            }
+            continue;
+        }
+        // CSSNestedDeclarations — bare declarations that apply to the parent.
+        if (rule.style && typeof rule.selectorText === 'undefined' && !rule.cssRules) {
+            const css = _emitRescoped(parentSelectors || [], rule.style, scope);
+            if (css) out.push(css);
+        }
+    }
+    return out;
+}
+
+/** Build the full rescoped CSS text for the given scope selector. @private */
+function _buildChatAliasCss(scope) {
+    const out = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+        if (sheet.ownerNode && sheet.ownerNode.id === CHAT_ALIAS_STYLE_ID) continue; // don't recurse on ourselves
+        let rules;
+        try { rules = sheet.cssRules; } catch { continue; } // cross-origin sheet
+        if (!rules) continue;
+        out.push(..._collectAliasRules(rules, scope));
+    }
+    return out.join('\n');
+}
+
+/**
+ * Mirror every `#chat`-scoped CSS rule onto `scopeSelector` so themed/main-chat
+ * styling applies to our secondary-chat panel. Rebuilds on SETTINGS_UPDATED
+ * (theme / custom-CSS edits). Returns a cleanup fn that removes the style and
+ * unsubscribes.
+ *
+ * @param {string} scopeSelector - e.g. '#chatplus-tab-panels .cp-tab-transcript'
+ * @returns {() => void} cleanup
+ */
+export function installChatStyleAlias(scopeSelector) {
+    let styleEl = document.getElementById(CHAT_ALIAS_STYLE_ID);
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = CHAT_ALIAS_STYLE_ID;
+        document.head.appendChild(styleEl);
+    }
+
+    const rebuild = () => {
+        try {
+            styleEl.textContent = _buildChatAliasCss(scopeSelector);
+        } catch (error) {
+            console.warn('[ChatPlus2] installChatStyleAlias rebuild failed:', error);
+        }
+    };
+    rebuild();
+
+    // Resync whenever stylesheets change/load. Theme extensions (e.g. Moonlit
+    // Echoes) inject their CSS via <link>/<style> at runtime — after our first
+    // build, often async (link load) and via their OWN settings (not
+    // SETTINGS_UPDATED) — so a one-time build misses them. Rebuild on:
+    // SETTINGS_UPDATED, APP_READY, <head> mutations (added/removed/edited
+    // <style>/<link>), stylesheet-link load events, and a few delayed ticks.
+    let timer = null;
+    const scheduleRebuild = () => { clearTimeout(timer); timer = setTimeout(rebuild, 200); };
+
+    const context = getContext();
+    const es = context?.eventSource;
+    const evtSettings = context?.eventTypes?.SETTINGS_UPDATED || 'settings_updated';
+    const evtReady = context?.eventTypes?.APP_READY || 'app_ready';
+    if (es?.on) { es.on(evtSettings, scheduleRebuild); es.on(evtReady, scheduleRebuild); }
+
+    // Rebuild when a stylesheet <link> finishes loading (async).
+    const attachLinkLoad = (node) => {
+        if (node && node.nodeType === 1 && node.tagName === 'LINK' && node.rel === 'stylesheet') {
+            node.addEventListener('load', scheduleRebuild, { once: true });
+        }
+    };
+    document.querySelectorAll('link[rel="stylesheet"]').forEach(attachLinkLoad);
+
+    // Watch <head> for added/removed/edited <style>/<link> nodes.
+    const observer = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+            // Ignore changes to our own alias <style> (prevents a rebuild loop).
+            if (m.target === styleEl || styleEl.contains(m.target)) continue;
+            const nodes = [...m.addedNodes, ...m.removedNodes];
+            if (nodes.length === 1 && nodes[0] === styleEl) continue;
+            const touchesStylesheet = m.type === 'characterData'
+                || nodes.some(n => n.nodeType === 1 && (n.tagName === 'STYLE' || n.tagName === 'LINK'));
+            if (touchesStylesheet) {
+                nodes.forEach(attachLinkLoad);
+                scheduleRebuild();
+                break;
+            }
+        }
+    });
+    try {
+        observer.observe(document.head, { childList: true, subtree: true, characterData: true });
+    } catch { /* best-effort */ }
+
+    // Safety net for async theme injection during app startup.
+    const safetyTimers = [300, 1200, 3000].map(ms => setTimeout(rebuild, ms));
+
+    return () => {
+        clearTimeout(timer);
+        safetyTimers.forEach(clearTimeout);
+        observer.disconnect();
+        if (es?.removeListener) {
+            try { es.removeListener(evtSettings, scheduleRebuild); } catch { /* best-effort */ }
+            try { es.removeListener(evtReady, scheduleRebuild); } catch { /* best-effort */ }
+        }
+        document.getElementById(CHAT_ALIAS_STYLE_ID)?.remove();
+    };
+}
+
+// ─── Per-chat write serialization ─────────────────────────────────────────
+// Read-latest → append → save must never interleave for the same chat file,
+// or a concurrent writer could clobber freshly-appended messages. Serialize
+// all file mutations per chatKey through a simple promise chain.
+const _chatWriteLocks = new Map();
+
+/**
+ * Run `fn` with exclusive access to a chat file (keyed by chatKey). Calls for
+ * the same key run strictly one after another; different keys run in parallel.
+ * @template T
+ * @param {string} chatKey
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
+export async function withChatLock(chatKey, fn) {
+    const prev = _chatWriteLocks.get(chatKey) || Promise.resolve();
+    let release;
+    const next = new Promise(resolve => { release = resolve; });
+    // Chain so the NEXT caller waits for us; swallow prior errors so one
+    // failure doesn't poison the chain. The map holds at most one (chained)
+    // promise per chatKey, overwritten each call — bounded by distinct keys.
+    const chained = prev.then(() => next, () => next);
+    _chatWriteLocks.set(chatKey, chained);
+    await prev.catch(() => { });
+    try {
+        return await fn();
+    } finally {
+        release();
+        // If no newer caller has chained on, drop the entry.
+        if (_chatWriteLocks.get(chatKey) === chained) {
+            _chatWriteLocks.delete(chatKey);
+        }
+    }
+}
+
+/**
+ * Read a character chat file from disk, split into its header + messages.
+ * Unlike fetchChatMessages (which discards the header), this preserves the
+ * leading chat-header object so appendToChatFile can write it back unchanged.
+ *
+ * @param {string} avatar - Character avatar filename
+ * @param {string} fileName - Chat filename (with or without .jsonl)
+ * @returns {Promise<{ header: Object|null, messages: Array<Object> }>}
+ */
+export async function readChatFile(avatar, fileName) {
+    const context = getContext();
+    const getRequestHeaders = context?.getRequestHeaders;
+    if (!getRequestHeaders) {
+        throw new Error('[ChatPlus2] getRequestHeaders not available');
+    }
+
+    const response = await fetch('/api/chats/get', {
+        method: 'POST',
+        headers: getRequestHeaders(),
+        cache: 'no-cache',
+        body: JSON.stringify({
+            avatar_url: avatar,
+            file_name: String(fileName || '').replace(/\.jsonl$/, ''),
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`[ChatPlus2] readChatFile: HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) {
+        return { header: null, messages: [] };
+    }
+
+    // Index 0 is the chat header (user_name / character_name / chat_metadata),
+    // not a message — detect by absence of message fields.
+    const first = data[0];
+    const isHeader = first && typeof first === 'object' && !('is_user' in first) && !('mes' in first);
+    return isHeader
+        ? { header: first, messages: data.slice(1) }
+        : { header: null, messages: data };
+}
+
+/**
+ * Append one or more messages to a character chat file on disk (read-latest →
+ * append → save), preserving the existing header. Serialized per chatKey.
+ *
+ * NEVER call this for the currently-loaded active chat — that would desync
+ * ST's in-memory `chat[]`. Callers must branch on "is this the active chat"
+ * first (see sendHeadlessMessage / ChatTabsController).
+ *
+ * @param {string} avatar - Character avatar filename
+ * @param {string} fileName - Chat filename (without .jsonl)
+ * @param {string} characterName - Character display name (ch_name for save)
+ * @param {Array<Object>} newMessages - Message objects to append
+ * @returns {Promise<boolean>} True on success
+ */
+export async function appendToChatFile(avatar, fileName, characterName, newMessages) {
+    if (!Array.isArray(newMessages) || newMessages.length === 0) return true;
+    const cleanName = String(fileName || '').replace(/\.jsonl$/, '');
+    const chatKey = `${avatar}:${cleanName}`;
+
+    return withChatLock(chatKey, async () => {
+        const context = getContext();
+        const getRequestHeaders = context?.getRequestHeaders;
+        if (!getRequestHeaders) {
+            console.warn('[ChatPlus2] appendToChatFile: getRequestHeaders not available');
+            return false;
+        }
+
+        // Read the freshest copy right before writing so we never clobber
+        // messages added since the tab last rendered.
+        let header, messages;
+        try {
+            ({ header, messages } = await readChatFile(avatar, cleanName));
+        } catch (error) {
+            console.error('[ChatPlus2] appendToChatFile: read failed:', error);
+            return false;
+        }
+
+        // Synthesize a minimal header if the file was empty/headerless.
+        const chatHeader = header || {
+            user_name: context?.name1 || 'You',
+            character_name: characterName,
+            create_date: getMessageTimeStamp(),
+            chat_metadata: {},
+        };
+
+        const combined = [...messages, ...newMessages];
+
+        try {
+            // force:true — we just read-latest under the lock, so the integrity
+            // check (which guards against blind overwrites) is satisfied.
+            const response = await fetch('/api/chats/save', {
+                method: 'POST',
+                headers: getRequestHeaders(),
+                cache: 'no-cache',
+                body: JSON.stringify({
+                    ch_name: characterName,
+                    file_name: cleanName,
+                    chat: [chatHeader, ...combined],
+                    avatar_url: avatar,
+                    force: true,
+                }),
+            });
+            if (!response.ok) {
+                console.error(`[ChatPlus2] appendToChatFile: save HTTP ${response.status}`);
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('[ChatPlus2] appendToChatFile: save failed:', error);
+            return false;
+        }
+    });
+}
+
+/**
+ * Build a SillyTavern message object suitable for writing to a .jsonl.
+ * @param {Object} opts
+ * @param {string} opts.name - Author name
+ * @param {boolean} opts.isUser - User vs character message
+ * @param {string} opts.mes - Message text
+ * @param {Object} [opts.extra] - Extra metadata (api/model for AI messages)
+ * @param {string} [opts.genStarted] - ISO start time (AI messages)
+ * @param {string} [opts.genFinished] - ISO finish time (AI messages)
+ * @returns {Object} ST message object
+ */
+export function buildChatMessage({ name, isUser, mes, extra = {}, genStarted, genFinished }) {
+    const msg = {
+        name,
+        is_user: !!isUser,
+        is_system: false,
+        send_date: getMessageTimeStamp(),
+        mes: String(mes ?? ''),
+        extra,
+    };
+    if (genStarted) msg.gen_started = genStarted;
+    if (genFinished) msg.gen_finished = genFinished;
+    return msg;
+}
+
+/**
+ * Build a lightweight lorebook/world-info block for a character (fast path).
+ *
+ * This is a deliberately SIMPLIFIED scanner — not ST's full WI engine. It
+ * reads the character's primary embedded book (char.data.extensions.world),
+ * includes constant entries plus keyword-matched keyed entries against the
+ * provided recent text, and joins their content. It does NOT do recursion,
+ * budgets, timed effects, secondary-key logic, or extra (charLore) books.
+ * Full fidelity is what "Promote to full chat" is for.
+ *
+ * @param {string} avatar - Character avatar filename
+ * @param {string} recentText - Recent conversation text to scan keys against
+ * @returns {Promise<string>} Lore block (may be empty string)
+ */
+export async function getCharacterLoreBlock(avatar, recentText) {
+    try {
+        const context = getContext();
+        const loadWorldInfo = context?.loadWorldInfo;
+        if (typeof loadWorldInfo !== 'function') return '';
+
+        const char = getCharacterByAvatar(avatar);
+        const bookName = char?.data?.extensions?.world;
+        if (!bookName) return '';
+
+        const data = await loadWorldInfo(bookName);
+        const entriesObj = data?.entries;
+        if (!entriesObj || typeof entriesObj !== 'object') return '';
+
+        const haystack = String(recentText || '').toLowerCase();
+        const activated = [];
+
+        for (const entry of Object.values(entriesObj)) {
+            if (!entry || entry.disable === true) continue;
+            const content = String(entry.content || '').trim();
+            if (!content) continue;
+
+            if (entry.constant === true) {
+                activated.push(entry);
+                continue;
+            }
+
+            const keys = Array.isArray(entry.key) ? entry.key : [];
+            const hit = keys.some(k => {
+                const term = String(k || '').trim().toLowerCase();
+                return term && haystack.includes(term);
+            });
+            if (hit) activated.push(entry);
+        }
+
+        if (activated.length === 0) return '';
+
+        activated.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+        return activated.map(e => String(e.content).trim()).join('\n\n');
+    } catch (error) {
+        console.warn('[ChatPlus2] getCharacterLoreBlock failed:', error);
+        return '';
+    }
+}
+
+/**
+ * Assemble the chat-completion `messages` array for a headless send: a system
+ * message (character card + lore) followed by recent history and the new user
+ * turn. Card macros ({{char}}/{{user}}) are substituted with the TARGET
+ * character's name and the active persona name (not the active character).
+ *
+ * @param {Object} opts
+ * @param {string} opts.avatar - Target character avatar
+ * @param {Array<Object>} opts.history - Prior messages from the chat file
+ * @param {string} opts.userText - New user message
+ * @param {number} [opts.historyDepth=20] - How many prior messages to include
+ * @returns {Promise<Array<{role: string, content: string}>>}
+ */
+export async function assembleHeadlessMessages({ avatar, history, userText, historyDepth = 20 }) {
+    const context = getContext();
+    const char = getCharacterByAvatar(avatar);
+    const charName = char?.name || 'Assistant';
+    const userName = context?.name1 || 'You';
+
+    const subst = (text) => String(text || '')
+        .replace(/\{\{char\}\}/gi, charName)
+        .replace(/<BOT>/gi, charName)
+        .replace(/\{\{user\}\}/gi, userName)
+        .replace(/<USER>/gi, userName);
+
+    // ── System prompt: character card fields ──
+    const cardParts = [];
+    if (char) {
+        if (char.data?.system_prompt) cardParts.push(subst(char.data.system_prompt));
+        if (char.description) cardParts.push(subst(char.description));
+        if (char.personality) cardParts.push(`${charName}'s personality: ${subst(char.personality)}`);
+        if (char.scenario) cardParts.push(`Scenario: ${subst(char.scenario)}`);
+        if (char.mes_example) cardParts.push(`Example dialogue:\n${subst(char.mes_example)}`);
+    }
+
+    // ── Lore block (simplified scanner) ──
+    const recentText = [
+        ...(Array.isArray(history) ? history.slice(-historyDepth).map(m => m?.mes || '') : []),
+        userText || '',
+    ].join('\n');
+    const loreBlock = await getCharacterLoreBlock(avatar, recentText);
+    if (loreBlock) cardParts.push(`Relevant world info:\n${loreBlock}`);
+
+    const messages = [];
+    if (cardParts.length > 0) {
+        messages.push({ role: 'system', content: cardParts.join('\n\n') });
+    }
+
+    // ── Recent history ──
+    const recent = Array.isArray(history) ? history.slice(-historyDepth) : [];
+    for (const m of recent) {
+        if (!m || typeof m.mes !== 'string') continue;
+        if (m.is_system) continue;
+        messages.push({ role: m.is_user ? 'user' : 'assistant', content: m.mes });
+    }
+
+    // ── New user turn ──
+    messages.push({ role: 'user', content: String(userText || '') });
+    return messages;
+}
+
+/**
+ * Send a message into a (non-active) chat via a secondary connection profile,
+ * WITHOUT switching the active character/chat. Persists both the user message
+ * and the AI reply to the target chat's .jsonl.
+ *
+ * Sequence:
+ *   1. Append the user message to the file immediately (persists even if gen fails).
+ *   2. Assemble prompt (card + lore + recent history + user turn).
+ *   3. ConnectionManagerRequestService.sendRequest with the bound profile.
+ *   4. Append the AI reply to the file.
+ *
+ * @param {Object} opts
+ * @param {string} opts.avatar - Target character avatar
+ * @param {string} opts.fileName - Target chat filename (without .jsonl)
+ * @param {string} opts.profileId - Connection profile id to generate with
+ * @param {string} opts.text - User message text
+ * @param {boolean} [opts.stream=false] - Stream the reply
+ * @param {AbortSignal} [opts.signal] - Abort signal
+ * @param {(partial: string) => void} [opts.onChunk] - Streaming progress callback
+ * @param {number} [opts.maxTokens] - Max response tokens
+ * @returns {Promise<{ userMessage: Object, aiMessage: Object }>}
+ */
+export async function sendHeadlessMessage({ avatar, fileName, profileId, text, stream = false, signal, onChunk, maxTokens = 1024 }) {
+    const context = getContext();
+    const service = context?.ConnectionManagerRequestService;
+    if (!service || typeof service.sendRequest !== 'function') {
+        throw new Error('Connection Manager is not available. Enable the Connection Manager extension to send through a profile.');
+    }
+    if (!profileId) {
+        throw new Error('No connection profile is bound to this tab.');
+    }
+
+    const char = getCharacterByAvatar(avatar);
+    const charName = char?.name || 'Assistant';
+    const userName = context?.name1 || 'You';
+    const cleanFile = String(fileName || '').replace(/\.jsonl$/, '');
+
+    // 1. Read current history + persist the user turn up front.
+    const { messages: history } = await readChatFile(avatar, cleanFile);
+    const userMessage = buildChatMessage({ name: userName, isUser: true, mes: text });
+    await appendToChatFile(avatar, cleanFile, charName, [userMessage]);
+
+    // 2. Assemble the prompt from the freshly-read history (excludes the turn
+    //    we just appended, which we add explicitly as userText).
+    const promptMessages = await assembleHeadlessMessages({ avatar, history, userText: text });
+
+    // 3. Generate via the bound profile.
+    const genStarted = new Date().toISOString();
+    const profile = getProfileById(profileId);
+    let replyText = '';
+
+    if (stream) {
+        const factory = await service.sendRequest(profileId, promptMessages, maxTokens, {
+            stream: true,
+            signal,
+            extractData: true,
+            includePreset: true,
+            includeInstruct: true,
+        });
+        const generator = typeof factory === 'function' ? factory() : factory;
+        for await (const value of generator) {
+            if (signal?.aborted) break;
+            // With extractData:true each value carries cumulative text.
+            const t = (value && (value.text ?? value.content)) ?? '';
+            if (typeof t === 'string' && t.length) {
+                replyText = t;
+                onChunk?.(replyText);
+            }
+        }
+    } else {
+        const result = await service.sendRequest(profileId, promptMessages, maxTokens, {
+            stream: false,
+            signal,
+            extractData: true,
+            includePreset: true,
+            includeInstruct: true,
+        });
+        replyText = (result && (result.content ?? result.text)) || '';
+    }
+
+    const genFinished = new Date().toISOString();
+
+    // 4. Persist the AI reply.
+    const aiMessage = buildChatMessage({
+        name: charName,
+        isUser: false,
+        mes: replyText,
+        extra: { api: profile?.api || '', model: profile?.model || '' },
+        genStarted,
+        genFinished,
+    });
+    await appendToChatFile(avatar, cleanFile, charName, [aiMessage]);
+
+    return { userMessage, aiMessage };
+}
+
+// ========================================
 // UI OPERATIONS
 // ========================================
 
@@ -1465,6 +2278,23 @@ export default {
     renameChat,
     deleteChat,
     deleteChats,
+
+    // Connection profiles + headless messaging
+    getConnectionProfiles,
+    getActiveProfileId,
+    getProfileById,
+    isHeadlessSendAvailable,
+    getMessageTimeStamp,
+    formatMessageHtml,
+    buildChatMessageElement,
+    installChatStyleAlias,
+    withChatLock,
+    readChatFile,
+    appendToChatFile,
+    buildChatMessage,
+    getCharacterLoreBlock,
+    assembleHeadlessMessages,
+    sendHeadlessMessage,
 
     // UI
     showToast,

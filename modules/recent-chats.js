@@ -336,6 +336,7 @@ export class RecentChatsView {
                 editMode: this._editMode,
                 selected: this._selectedKeys.has(chatKey),
                 onOpen: (c) => this._openChat(c),
+                onOpenInTab: this._tabsEnabled() ? (c) => this._openChatInTab(c) : undefined,
                 onPin: (c, key) => this._handlePinToggle(c, key),
                 onRename: (c, key) => this._handleRename(c, key),
                 onAddToFolder: (c, key, btn) => this._handleAddToFolder(c, key, btn),
@@ -445,6 +446,7 @@ export class RecentChatsView {
                 includeEntityPrefix: isFiltered || !groupByCharacter,
                 includeAvatar: !hideAvatar,
                 onOpen: (c) => this._openChat(c),
+                onOpenInTab: this._tabsEnabled() ? (c) => this._openChatInTab(c) : undefined,
                 onPin: (c, key) => this._handlePinToggle(c, key),
                 onRename: (c, key) => this._handleRename(c, key),
                 onAddToFolder: (c, key, btn) => this._handleAddToFolder(c, key, btn),
@@ -1067,6 +1069,14 @@ export class RecentChatsView {
     }
 
     async _openChat(chat) {
+        // Tabs-aware routing: if the chat is already open (as a secondary tab
+        // or as the live main chat), focus it instead of a heavy switch. This
+        // also covers the previously-undefined behavior of clicking an entry
+        // whose chat was on screen in a tab.
+        if (this._tabsEnabled()
+            && CoreAPI.getModule('ChatTabsController')?.focusIfOpen?.(chat)) {
+            return true;
+        }
         try {
             const ok = await CoreAPI.openChat({
                 file_name: chat.file_name,
@@ -1081,6 +1091,25 @@ export class RecentChatsView {
             CoreAPI.showToast('Failed to open chat', 'error');
             return false;
         }
+    }
+
+    /** Whether the chat-tabs feature is enabled (gates the per-row "+"). */
+    _tabsEnabled() {
+        return CoreAPI.getStateManager()?.get('tabsEnabled') !== false;
+    }
+
+    /**
+     * Open a chat as a secondary multi-profile tab (the "+" on a Recent row).
+     * Delegates to ChatTabsController; groups are rejected there.
+     * @param {Object} chat
+     */
+    _openChatInTab(chat) {
+        const controller = CoreAPI.getModule('ChatTabsController');
+        if (!controller) {
+            CoreAPI.showToast('Chat tabs are not available', 'error');
+            return;
+        }
+        controller.openSecondaryTab(chat);
     }
 
     /**
