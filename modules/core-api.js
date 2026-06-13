@@ -27,7 +27,7 @@
  * @version 1.0.0
  */
 
-import { getGroupPastChats, getGroupAvatar, openGroupById } from '../../../../group-chats.js';
+import { getGroupAvatar, openGroupById } from '../../../../group-chats.js';
 import { setActiveCharacter, setActiveGroup, user_avatar, default_user_avatar } from '../../../../../script.js';
 
 // These ST helpers are NOT exposed on `SillyTavern.getContext()` but are
@@ -383,8 +383,24 @@ export function getGroupAvatarElement(group) {
 
 /**
  * Fetch the list of chats for a group along with lightweight stats.
- * Uses SillyTavern's getGroupPastChats which loads each chat to extract
- * the last message, its date, and the message count.
+ *
+ * IMPORTANT — why this no longer uses ST's `getGroupPastChats`:
+ * `getGroupPastChats` POSTs `/api/chats/group/info` for every entry in
+ * `group.chats[]`. That server endpoint calls `getChatInfo`, which does
+ * `await fs.promises.stat(file)` inside a `new Promise(async …)` with no
+ * reject handler. When a group's metadata lists a chat whose `.jsonl` has
+ * been deleted from disk (an orphaned entry — common after manual file
+ * cleanup), the ENOENT rejection escapes as an UNHANDLED rejection and
+ * crashes the whole SillyTavern process. Because we enumerate every group's
+ * chats eagerly at startup (Recent-Chats cache build), a single orphaned
+ * group chat took the server down the instant the extension loaded.
+ *
+ * Fix: read each chat through `/api/chats/group/get` instead. That endpoint
+ * is backed by `getChatData` → `tryReadFileSync`, which returns `[]` on a
+ * missing file (and merely logs a warning) rather than throwing — so an
+ * orphaned entry is skipped, never crashes. We derive the same stats
+ * (last message text, its date, message count) client-side, mirroring the
+ * semantics `getChatInfo` would have produced.
  *
  * Response shape per item:
  *   { file_name: string, last_mes: string|number, mes: string, chat_size: number }
@@ -394,18 +410,73 @@ export function getGroupAvatarElement(group) {
  */
 export async function getGroupChatsWithStats(groupId) {
     try {
-        const chats = await getGroupPastChats(groupId);
-        if (!Array.isArray(chats)) return [];
+        const group = getGroupById(String(groupId));
+        const chatIds = Array.isArray(group?.chats) ? group.chats : [];
+        if (chatIds.length === 0) return [];
 
-        return chats.map(entry => ({
-            file_name: String(entry.file_name || '').replace('.jsonl', ''),
-            last_mes: entry.last_mes ?? null,
-            mes: entry.mes ?? null,
-            chat_size: entry.chat_items ?? null
-        }));
+        const results = await Promise.all(
+            chatIds.map(chatId => _getGroupChatStats(chatId)),
+        );
+
+        // Drop orphaned entries (file missing on disk): including them would
+        // surface dead rows in Recent Chats that dead-end on open.
+        return results.filter(entry => entry !== null);
     } catch (error) {
         console.error(`[ChatPlus2] Error fetching group chats with stats for ${groupId}:`, error);
         return [];
+    }
+}
+
+/**
+ * Read a single group chat via the crash-safe `/api/chats/group/get` endpoint
+ * and derive its lightweight stats. Returns `null` when the chat file is
+ * missing/empty on disk (orphaned `group.chats[]` entry) so the caller can
+ * skip it.
+ *
+ * @private
+ * @param {string} chatId - Group chat id (filename without `.jsonl`)
+ * @returns {Promise<{file_name: string, last_mes: string|number|null, mes: string|null, chat_size: number|null}|null>}
+ */
+async function _getGroupChatStats(chatId) {
+    const fileName = String(chatId || '').replace(/\.jsonl$/, '');
+    if (!fileName) return null;
+
+    try {
+        const context = getContext();
+        const getRequestHeaders = context?.getRequestHeaders;
+        if (!getRequestHeaders) {
+            console.warn('[ChatPlus2] getRequestHeaders not available');
+            return null;
+        }
+
+        const response = await fetch('/api/chats/group/get', {
+            method: 'POST',
+            headers: getRequestHeaders(),
+            body: JSON.stringify({ id: fileName }),
+        });
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        // `getChatData` returns [] for a missing/empty file — treat as orphaned.
+        if (!Array.isArray(data) || data.length === 0) return null;
+
+        // The first line is the chat header (no `mes`/`is_user`); the rest are
+        // messages. Mirror getChatInfo: message count excludes the header and
+        // the "last message" is the final line in the file.
+        const hasHeader = data[0] && !('mes' in data[0]) && !('is_user' in data[0]);
+        const messageCount = hasHeader ? data.length - 1 : data.length;
+        const lastLine = data[data.length - 1];
+
+        return {
+            file_name: fileName,
+            last_mes: lastLine?.send_date ?? null,
+            mes: lastLine?.mes ?? null,
+            chat_size: messageCount,
+        };
+    } catch (error) {
+        console.error(`[ChatPlus2] Error reading group chat "${fileName}":`, error);
+        return null;
     }
 }
 
